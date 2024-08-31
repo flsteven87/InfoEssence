@@ -1,0 +1,20 @@
+database:
+  user: ${DATABASE_USER}
+  password: ${DATABASE_PASSWORD}
+  host: ${DATABASE_HOST:localhost}
+  name: ${DATABASE_NAME:infoessence}
+
+openai:
+  api_key: ${OPENAI_API_KEY}
+
+jina:
+  api_url: ${JINA_API_URL:https://r.jina.ai}
+
+proxy:
+  use_proxy: ${USE_PROXY:false}
+  proxies:
+    - http: 138.197.102.119:80
+    - http: 160.248.189.95:3128
+    - http: 160.248.93.134:3128
+    - http: 103.216.50.11:8080
+    - http: 124.236.25.252:8080

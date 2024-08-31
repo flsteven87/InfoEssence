@@ -1,0 +1,14 @@
+bloomberg:
+  name: Bloomberg
+  url: https://www.bloomberg.com
+  feeds:
+    - name: Politics
+      url: 'https://feeds.bloomberg.com/politics/news.rss'
+    - name: Markets
+      url: 'https://feeds.bloomberg.com/markets/news.rss'
+    - name: Technology
+      url: 'https://feeds.bloomberg.com/technology/news.rss'
+    - name: Wealth
+      url: 'https://feeds.bloomberg.com/wealth/news.rss'
+    - name: Economics
+      url: 'https://feeds.bloomberg.com/economics/news.rss'

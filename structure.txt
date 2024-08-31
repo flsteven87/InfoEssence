@@ -1,0 +1,27 @@
+InfoEssence/
+├── src/
+│   ├── config/
+│   │   ├── __init__.py
+│   │   └── settings.py
+│   ├── database/
+│   │   ├── __init__.py
+│   │   └── operations.py
+│   ├── services/
+│   │   ├── __init__.py
+│   │   ├── feed_parser.py
+│   │   ├── content_fetcher.py
+│   │   └── summarizer.py
+│   ├── utils/
+│   │   ├── __init__.py
+│   │   └── helpers.py
+│   └── main.py
+├── tests/
+│   ├── test_feed_parser.py
+│   ├── test_content_fetcher.py
+│   └── test_summarizer.py
+├── .env
+├── .gitignore
+├── docker-compose.yml
+├── Dockerfile
+├── requirements.txt
+└── README.md
