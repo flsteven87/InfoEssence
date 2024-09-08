@@ -1,163 +1,47 @@
-import psycopg2
-from psycopg2.extras import RealDictCursor
-from src.config.settings import DATABASE_URL
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 
-class Media:
-    def __init__(self, id, name, url, created_at=None):
-        self.id = id
-        self.name = name
-        self.url = url
-        self.created_at = created_at
+Base = declarative_base()
 
-    @classmethod
-    def create_table(cls):
-        with psycopg2.connect(DATABASE_URL) as conn:
-            with conn.cursor() as cur:
-                cur.execute("""
-                    CREATE TABLE IF NOT EXISTS media (
-                        id SERIAL PRIMARY KEY,
-                        name TEXT NOT NULL,
-                        url TEXT NOT NULL UNIQUE,
-                        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-                    )
-                """)
-            conn.commit()
+class Media(Base):
+    __tablename__ = 'media'
 
-    @classmethod
-    def insert_or_update(cls, media):
-        with psycopg2.connect(DATABASE_URL) as conn:
-            with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute("""
-                    INSERT INTO media (name, url)
-                    VALUES (%s, %s)
-                    ON CONFLICT (url) DO UPDATE SET
-                        name = EXCLUDED.name
-                    RETURNING id, created_at
-                """, (media.name, media.url))
-                result = cur.fetchone()
-                media.id = result['id']
-                media.created_at = result['created_at']
-            conn.commit()
-        return media
+    id = Column(Integer, primary_key=True)
+    name = Column(String(255), nullable=False)
+    url = Column(String, nullable=False, unique=True)
 
-    @classmethod
-    def get_by_url(cls, url):
-        with psycopg2.connect(DATABASE_URL) as conn:
-            with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute("SELECT * FROM media WHERE url = %s", (url,))
-                result = cur.fetchone()
-                if result:
-                    return cls(**result)
-        return None
+    feeds = relationship("Feed", back_populates="media")
+    news = relationship("News", back_populates="media")
 
-class Feed:
-    def __init__(self, url, media_id, name=None, created_at=None):
-        self.url = url
-        self.media_id = media_id
-        self.name = name
-        self.created_at = created_at
+class Feed(Base):
+    __tablename__ = 'feeds'
 
-    @classmethod
-    def create_table(cls):
-        with psycopg2.connect(DATABASE_URL) as conn:
-            with conn.cursor() as cur:
-                cur.execute("""
-                    CREATE TABLE IF NOT EXISTS feeds (
-                        url TEXT PRIMARY KEY,
-                        media_id INTEGER REFERENCES media(id),
-                        name TEXT NOT NULL,
-                        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-                    )
-                """)
-            conn.commit()
+    id = Column(Integer, primary_key=True)
+    url = Column(String, nullable=False, unique=True)
+    name = Column(String(255), nullable=False)
+    media_id = Column(Integer, ForeignKey('media.id'))
+    last_fetched = Column(DateTime(timezone=True))
 
-    @classmethod
-    def insert_or_update(cls, feed):
-        with psycopg2.connect(DATABASE_URL) as conn:
-            with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute("""
-                    INSERT INTO feeds (url, media_id, name)
-                    VALUES (%s, %s, %s)
-                    ON CONFLICT (url) DO UPDATE SET
-                        media_id = EXCLUDED.media_id,
-                        name = COALESCE(EXCLUDED.name, feeds.name)
-                    RETURNING created_at, name
-                """, (feed.url, feed.media_id, feed.name))
-                result = cur.fetchone()
-                feed.created_at = result['created_at']
-                feed.name = result['name']  # 更新 name，以防為 None
-            conn.commit()
-        return feed
+    media = relationship("Media", back_populates="feeds")
+    news = relationship("News", back_populates="feed")
 
-    @classmethod
-    def get_by_url(cls, url):
-        with psycopg2.connect(DATABASE_URL) as conn:
-            with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute("SELECT * FROM feeds WHERE url = %s", (url,))
-                result = cur.fetchone()
-                if result:
-                    return cls(**result)
-        return None
+class News(Base):
+    __tablename__ = 'news'
 
-class News:
-    def __init__(self, link, title=None, summary=None, content=None, ai_title=None, ai_summary=None, media_id=None, feed_url=None, created_at=None):
-        self.link = link
-        self.title = title
-        self.summary = summary
-        self.content = content
-        self.ai_title = ai_title
-        self.ai_summary = ai_summary
-        self.media_id = media_id
-        self.feed_url = feed_url
-        self.created_at = created_at
+    id = Column(Integer, primary_key=True)
+    link = Column(String, nullable=False, unique=True)
+    title = Column(String, nullable=False)
+    summary = Column(String)
+    ai_title = Column(String)
+    ai_summary = Column(String)
+    published_at = Column(DateTime(timezone=True))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    media_id = Column(Integer, ForeignKey('media.id'))
+    feed_id = Column(Integer, ForeignKey('feeds.id'))
 
-    @classmethod
-    def create_table(cls):
-        with psycopg2.connect(DATABASE_URL) as conn:
-            with conn.cursor() as cur:
-                cur.execute("""
-                    CREATE TABLE IF NOT EXISTS news (
-                        link TEXT PRIMARY KEY,
-                        title TEXT NOT NULL,
-                        summary TEXT,
-                        content TEXT,
-                        ai_title TEXT,
-                        ai_summary TEXT,
-                        media_id INTEGER REFERENCES media(id),
-                        feed_url TEXT REFERENCES feeds(url),
-                        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-                    )
-                """)
-            conn.commit()
+    feed = relationship("Feed", back_populates="news")
+    media = relationship("Media", back_populates="news")
 
-    @classmethod
-    def insert_or_update(cls, news):
-        with psycopg2.connect(DATABASE_URL) as conn:
-            with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute("""
-                    INSERT INTO news (link, title, summary, content, ai_title, ai_summary, media_id, feed_url)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                    ON CONFLICT (link) DO UPDATE SET
-                        title = EXCLUDED.title,
-                        summary = EXCLUDED.summary,
-                        content = EXCLUDED.content,
-                        ai_title = EXCLUDED.ai_title,
-                        ai_summary = EXCLUDED.ai_summary,
-                        media_id = EXCLUDED.media_id,
-                        feed_url = EXCLUDED.feed_url
-                    RETURNING created_at
-                """, (news.link, news.title, news.summary, news.content, news.ai_title, news.ai_summary, news.media_id, news.feed_url))
-                result = cur.fetchone()
-                news.created_at = result['created_at']
-            conn.commit()
-        return news
-
-    @classmethod
-    def get_by_link(cls, link):
-        with psycopg2.connect(DATABASE_URL) as conn:
-            with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute("SELECT * FROM news WHERE link = %s", (link,))
-                result = cur.fetchone()
-                if result:
-                    return cls(**result)
-        return None
+Feed.news = relationship("News", back_populates="feed")

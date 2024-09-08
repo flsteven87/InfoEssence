@@ -1,6 +1,7 @@
 bloomberg:
   name: Bloomberg
   url: https://www.bloomberg.com
+  status: active
   feeds:
     - name: Politics
       url: 'https://feeds.bloomberg.com/politics/news.rss'
@@ -12,3 +13,33 @@ bloomberg:
       url: 'https://feeds.bloomberg.com/wealth/news.rss'
     - name: Economics
       url: 'https://feeds.bloomberg.com/economics/news.rss'
+bbc:
+  name: BBC News
+  url: https://www.bbc.com/news
+  status: active
+  feeds:
+    - name: World
+      url: 'http://feeds.bbci.co.uk/news/world/rss.xml'
+cnn:
+  name: CNN
+  url: https://www.cnn.com
+  status: pending
+  feeds:
+    - name: World
+      url: 'http://rss.cnn.com/rss/edition_world.rss'
+    - name: Latest News
+      url: 'http://rss.cnn.com/rss/cnn_latest.rss'
+yahoo_news:
+  name: Yahoo News
+  url: https://news.yahoo.com
+  status: pending
+  feeds:
+    - name: Latest News
+      url: 'https://news.yahoo.com/rss'
+cnbc:
+  name: CNBC
+  url: https://www.cnbc.com
+  status: active
+  feeds:
+    - name: World
+      url: 'https://www.cnbc.com/id/100727362/device/rss/rss.html'

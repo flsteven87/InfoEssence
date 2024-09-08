@@ -2,6 +2,7 @@ import os
 import yaml
 from dotenv import load_dotenv
 from pathlib import Path
+import logging
 
 # 載入 .env 文件
 load_dotenv()
@@ -47,4 +48,8 @@ JINA_API_URL = config['jina']['api_url']
 
 # 可選：如果需要代理設置，取消下面的註釋
 USE_PROXY = config.get('proxy', {}).get('use_proxy', False)
-PROXIES = config.get('proxy', {}).get('proxies', [])
+PROXIES = []
+
+def update_proxies(new_proxies):
+    global PROXIES
+    PROXIES = new_proxies

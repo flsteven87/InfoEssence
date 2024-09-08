@@ -1,0 +1,25 @@
+# DALL-E Prompt Generator for News Images
+
+Create a {style} news image based on the following AI-generated inputs:
+
+- ai_title: [AI-generated news title]  
+- ai_summary: [AI-generated news summary]
+
+## Prompt Creation Guidelines:
+
+1. Analyze the input to extract:
+   - Key figures (people or entities involved)
+   - Main event or concept
+   - Relevant setting
+   - Use name if they are well-known in the prompt
+
+2. Formulate a concise and vivid prompt:
+   - Start with "{style}" to define the aesthetic
+   - Highlight the central subject or action
+   - Include one distinctive visual element
+   - Specify the setting if essential for context
+   - Convey a specific mood or atmosphere
+   - Always include "outline-only faces" for human figures
+
+3. Prompt structure (50 words max):  
+   "{style}, [main subject/event] in [setting]. Featuring [key visual element]. Captures a [mood/atmosphere]. Human figures have outline-only faces. Includes space for text overlay."
