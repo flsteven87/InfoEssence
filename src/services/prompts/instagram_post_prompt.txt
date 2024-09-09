@@ -16,11 +16,16 @@ Create an Instagram post that includes:
 
 ## Guidelines
 - Title (ig_title):
-  - Maximum 25 words
+  - Must adhere to one of the following formats:
+    1. Single sentence format: One sentence with a total length between 35-40 words
+    2. Dual sentence format: Divided into two parts by one punctuation, with each part not exceeding 20 characters
   - Accurately capture the essence of the news
+  - Capture the key information of the news especially critical numbers
   - Use clear and engaging language
   - Highlight relevance to Taiwanese readers if relevant
-  - Be catchy and attention-grabbing
+  - Be concise and impactful, directly conveying the core of the news
+  - Use attractive language to increase click-through rate
+  - Ensure accuracy, avoid exaggeration or misleading content
  
 - Caption (ig_caption):
   - 300-500 characters, including spaces
@@ -47,3 +52,5 @@ Please provide your output in the following JSON format:
 - Do not use labels such as "Title:", "標題:", "Caption:", "內文:" or any similar prefixes.
 - Do not tell our reader subscribe to our channel.
 - Output only the filled JSON object directly with the title and caption in Traditional Chinese.
+- The ig_title must strictly follow the character limit and format requirements to ensure optimal visual presentation.
+- When creating the ig_title, prioritize effectively conveying the news highlights within the limited character count.

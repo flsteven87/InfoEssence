@@ -44,12 +44,8 @@ GlobalNews for Taiwan is an advanced news aggregation and summarization system d
    ```
 
 4. Initialize the database:
-   (Add instructions for database setup if necessary)
 
 5. Run the application:
-   ```
-   python src/main.py
-   ```
 
 ## Usage
 
@@ -113,10 +109,6 @@ A typical workflow might look like this:
   - `utils/`: Utility functions
 - `requirements.txt`: List of Python dependencies
 - `.gitignore`: Specifies intentionally untracked files to ignore
-
-## Contributing
-
-Contributions to GlobalNews for Taiwan are welcome! Please feel free to submit pull requests, create issues or spread the word.
 
 ## License
 

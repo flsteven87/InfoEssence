@@ -188,7 +188,7 @@ def main():
                 media_dir = sanitize_filename(item['media_name'])
                 feed_dir = sanitize_filename(item.get('feed_name', ''))
                 image_path = os.path.join(image_dir, media_dir, feed_dir)
-                image_files = [f for f in os.listdir(image_path) if f.startswith(f"{item['id']}_") and f.endswith(".png")]
+                image_files = [f for f in os.listdir(image_path) if f.startswith(f"{item['id']}_") and f.endswith("_integrated.png")]
                 if image_files:
                     image_file = image_files[0]
                     full_image_path = os.path.join(image_path, image_file)
@@ -202,9 +202,15 @@ def main():
                 display_title = item['ai_title']
                 display_summary = item['ai_summary']
 
+            # 處理摘要中的 hashtag
+            hashtag_index = display_summary.find('#')
+            if hashtag_index != -1:
+                display_summary = display_summary[:hashtag_index] + '<br><br>' + display_summary[hashtag_index:]
+            display_summary += ' #GlobalNewsTaiwan'
+
             # 在顯示之前進行 HTML 轉義
             display_title = html.escape(display_title)
-            display_summary = html.escape(display_summary)
+            display_summary = html.escape(display_summary).replace('&lt;br&gt;', '<br>')
             media_name = html.escape(item['media_name'])
             link = html.escape(item['link'])
 
