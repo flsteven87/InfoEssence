@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 from PIL import Image, ImageDraw, ImageFont
-from src.utils.file_utils import get_image_file_path
+from src.utils.file_utils import get_image_file_path, get_text_width
 from src.utils.database_utils import get_news_by_id
 import unicodedata
 
@@ -99,22 +99,12 @@ class ImageIntegrator:
         
         pass
 
-    @staticmethod
-    def get_text_width(font, text):
-        width = 0
-        for char in text:
-            # 使用 getbbox 方法獲取每個字元的寬度
-            bbox = font.getbbox(char)
-            char_width = bbox[2] - bbox[0]  # bbox 返回 (x_min, y_min, x_max, y_max)
-            width += char_width
-        return width
-
     def process_title(self):
-        
+
         def get_first_line_threshold(font, ig_title):
             # 計算出臨界點，如果超過這個臨界點，就會換行，回傳臨界點的index
             for i, char in enumerate(ig_title):
-                if self.get_text_width(font, ig_title[:i]) > self.title_width_for_draw:
+                if get_text_width(font, ig_title[:i]) > self.title_width_for_draw:
                     return i
             return len(ig_title)
 
@@ -138,14 +128,14 @@ class ImageIntegrator:
             first_part = self.ig_title[:split_index + 1]
             second_part = self.ig_title[split_index + 1:]
             
-            if self.get_text_width(self.title_font, first_part) <= self.title_width_for_draw and self.get_text_width(self.title_font, second_part) <= self.title_width_for_draw:
+            if get_text_width(self.title_font, first_part) <= self.title_width_for_draw and get_text_width(self.title_font, second_part) <= self.title_width_for_draw:
                 self.first_line = first_part
                 self.second_line = second_part
             # 用第二個標點符號切分，檢查前後兩段是否都小於 17 個字，若都小於則將其切分並放置到第一跟第二行，若只有一段小於則17個字第一行，剩餘第二行
             elif second_split_index != -1:
                 first_part = self.ig_title[:second_split_index + 1]
                 second_part = self.ig_title[second_split_index + 1:]
-                if self.get_text_width(self.title_font, first_part) <= self.title_width_for_draw and self.get_text_width(self.title_font, second_part) <= self.title_width_for_draw:
+                if get_text_width(self.title_font, first_part) <= self.title_width_for_draw and get_text_width(self.title_font, second_part) <= self.title_width_for_draw:
                     self.first_line = first_part
                     self.second_line = second_part
                 else:
@@ -202,25 +192,13 @@ class ImageIntegrator:
         # 繪製品牌標記
         draw.text((x, y), self.brand_mark, font=self.brand_mark_font, fill=(255, 255, 255))
 
-    def process_ig_title_fullwidth(self, text):
-        """將 ig_title 的標點符號轉換成全形，保持數字、%和.為半形"""
-        return ''.join([
-            char if char.isdigit() or char in ['%', '.'] else
-            unicodedata.normalize('NFKC', char).translate({
-                ord(c): ord(c) + 0xFEE0 for c in '!"#$&\'()*+,-/:;<=>?@[\\]^_`{|}~'
-            })
-            for char in text
-        ])
-
     def integrate_ig_images(self):
         latest_csv = self.get_latest_instagram_csv()
         posts_df = self.load_instagram_posts(latest_csv)
         
         for _, row in posts_df.iterrows():
             news_id = row['id']
-            self.ig_title = self.process_ig_title_fullwidth(row['ig_title'])
-            print(self.ig_title)
-
+            self.ig_title = row['ig_title']
             news_data = get_news_by_id(news_id)
             self.published_time = news_data['published_at']
             # 將時間轉換成 2024.05.01 19:24 GMT+8 的格式

@@ -3,13 +3,16 @@ from openai import OpenAI
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from PIL import ImageFont
+import logging
 from src.database.models import News, Media, Feed
 from src.services.image_integrator import ImageIntegrator
-from src.utils.file_utils import get_content_file_path, sanitize_filename
+from src.utils.file_utils import get_content_file_path, sanitize_filename, get_text_width
 from src.utils.database_utils import get_news_by_id
 from src.config.settings import DATABASE_URL, OPENAI_API_KEY
 from pydantic import BaseModel
 import csv
+import unicodedata
 from datetime import datetime
 from typing import List, Dict
 
@@ -24,11 +27,27 @@ class InstagramPostGenerator:
         self.engine = create_engine(DATABASE_URL)
         self.SessionLocal = sessionmaker(bind=self.engine)
         self.system_prompt = self.load_prompt_template()
+        self.title_font_path = "./src/assets/jf-openhuninn-2.0.ttf"
+
+        # 搶先確認
+        self.title_font_size = int(56)
+        self.title_font = ImageFont.truetype(self.title_font_path, self.title_font_size)
+        self.title_width_for_draw = 1024 - 40 - 40 - 30
 
     def load_prompt_template(self):
         prompt_path = os.path.join(os.path.dirname(__file__), 'prompts', 'instagram_post_prompt.txt')
         with open(prompt_path, 'r', encoding='utf-8') as f:
             return f.read().strip()
+
+    def process_ig_title_fullwidth(self, text):
+        """將 ig_title 的標點符號轉換成全形，保持數字、%和.為半形"""
+        return ''.join([
+            char if char.isdigit() or char in ['%', '.'] else
+            unicodedata.normalize('NFKC', char).translate({
+                ord(c): ord(c) + 0xFEE0 for c in '!"#$&\'()*+,-/:;<=>?@[\\]^_`{|}~'
+            })
+            for char in text
+        ])
 
     def generate_instagram_post(self, news_id: int):
         news_data = get_news_by_id(news_id)
@@ -60,8 +79,11 @@ class InstagramPostGenerator:
         tool_call = response.choices[0].message.tool_calls[0]
         if tool_call.function.name == "output_instagram_post":
             result = InstagramPost.model_validate_json(tool_call.function.arguments)
+            if get_text_width(self.title_font, result.ig_title) > self.title_width_for_draw*2:
+                logging.warning(f"ig_title 寬度超過2行")
+                print(f"{result.ig_title}")
             return {
-                "ig_title": result.ig_title,
+                "ig_title": self.process_ig_title_fullwidth(result.ig_title),
                 "ig_caption": result.ig_caption,
                 "news_data": news_data
             }
