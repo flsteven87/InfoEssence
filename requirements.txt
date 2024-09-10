@@ -1,11 +1,12 @@
 beautifulsoup4==4.12.3
 feedparser==6.0.11
 imgurpython==1.1.7
-instabot==0.117.0
-openai==1.44.0
+instagrapi==2.1.2
+openai==1.44.1
 pandas==2.2.2
+Pillow==10.4.0
 psycopg2_binary==2.9.9
-pydantic==2.9.0
+pydantic==2.9.1
 python-dotenv==1.0.1
 python_dateutil==2.9.0.post0
 PyYAML==6.0.2

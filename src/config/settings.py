@@ -4,8 +4,14 @@ from dotenv import load_dotenv
 from pathlib import Path
 import logging
 
-# 載入 .env 文件
-load_dotenv()
+
+# 確定當前環境
+ENV = os.getenv('ENV', 'development')
+# 載入對應的 .env 文件
+if ENV == 'production':
+    load_dotenv('.env.production')
+else:
+    load_dotenv('.env')
 
 # 獲取當前文件的目錄
 current_dir = Path(__file__).resolve().parent
@@ -39,6 +45,7 @@ DB_HOST = config['database']['host']
 DB_NAME = config['database']['name']
 DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/{DB_NAME}"
 
+print(DATABASE_URL)
 # 其他設置
 OPENAI_API_KEY = config['openai']['api_key']
 RSS_CONFIG = rss_config

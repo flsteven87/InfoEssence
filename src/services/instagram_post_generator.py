@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from src.database.models import News, Media, Feed
+from src.services.image_integrator import ImageIntegrator
 from src.utils.file_utils import get_content_file_path, sanitize_filename
 from src.utils.database_utils import get_news_by_id
 from src.config.settings import DATABASE_URL, OPENAI_API_KEY

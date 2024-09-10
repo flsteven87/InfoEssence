@@ -111,7 +111,7 @@ class InstagramPoster:
             
             # 構建完整的圖片路徑
             save_dir = os.path.join("./image", sanitize_filename(news_data['media_name']), sanitize_filename(news_data['feed_name']))
-            file_name = f"{news_data['id']}_{sanitize_filename(news_data['title'][:50])}_news illustration style.png"
+            file_name = f"{news_data['id']}_{sanitize_filename(news_data['title'][:50])}_integrated.png"
             full_image_path = os.path.join(save_dir, file_name)
             print(f"完整圖片路徑: {full_image_path}")
             

@@ -134,7 +134,7 @@ def main():
     JOIN feeds ON news.feed_id = feeds.id
     WHERE news.published_at >= %s AND news.published_at < %s
     """
-    # 將結束日期加一天，以包含整個結束日期
+    # 將結束日期加��天，以包含整個結束日期
     params = [start_date, end_date + timedelta(days=1)]
 
     if selected_media:
@@ -202,11 +202,17 @@ def main():
                 display_title = item['ai_title']
                 display_summary = item['ai_summary']
 
+            # 確保 display_title 和 display_summary 不是 None
+            display_title = str(display_title) if display_title is not None else ""
+            display_summary = str(display_summary) if display_summary is not None else ""
+
             # 處理摘要中的 hashtag
             hashtag_index = display_summary.find('#')
             if hashtag_index != -1:
                 display_summary = display_summary[:hashtag_index] + '<br><br>' + display_summary[hashtag_index:]
-            display_summary += ' #GlobalNewsTaiwan'
+            else:
+                display_summary += '<br><br>'
+            display_summary += '#GlobalNewsTaiwan'
 
             # 在顯示之前進行 HTML 轉義
             display_title = html.escape(display_title)
