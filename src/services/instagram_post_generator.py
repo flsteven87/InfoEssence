@@ -63,9 +63,9 @@ class InstagramPostGenerator:
                     "news_data": news_data
                 }
             else:
-                logging.warning(f"第 {attempt + 1} 次嘗試：ig_title {result.ig_title} 寬度超過2行，重新生成")
+                logging.warning(f"第 {attempt + 1} 次嘗試：ig_title: '{result.ig_title}' 寬度超過2行，重新生成")
         
-        logging.error(f"無法生成符合寬度要求的 ig_title，使用最後一次生成的結果 {result.ig_title}")
+        logging.error(f"無法生成符合寬度要求的 ig_title，使用最後一次生成的結果 '{result.ig_title}'")
         return {
             "ig_title": self.process_ig_title_fullwidth(result.ig_title),
             "ig_caption": result.ig_caption,
