@@ -57,14 +57,6 @@ JINA_API_URL = os.getenv('JINA_API_URL', config['jina']['api_url'])
 # RSS 配置
 RSS_CONFIG = rss_config
 
-# 可選：如果需要代理設置
-USE_PROXY = config.get('proxy', {}).get('use_proxy', False)
-PROXIES = []
-
-def update_proxies(new_proxies):
-    global PROXIES
-    PROXIES = new_proxies
-
 # 顯示當前使用的環境
 print(f"Current environment: {ENV}")
 print(f"Using DATABASE_URL: {DATABASE_URL}")

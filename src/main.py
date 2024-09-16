@@ -134,9 +134,6 @@ def main():
 
     info_essence = InfoEssence()
 
-    new_proxies = info_essence.content_fetcher.update_proxy_list()
-    logging.info(f"代理列表已更新：{new_proxies}")
-
     if not any(vars(args).values()):
         # 如果沒有參數，執行完整流程
         info_essence.update_media_and_feeds()
