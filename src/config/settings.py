@@ -46,6 +46,10 @@ if not DATABASE_URL:
     DB_NAME = os.getenv('DB_NAME', config['database']['name'])
     DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/{DB_NAME}"
 
+# 確保 URL 使用 postgresql:// 而不是 postgres://
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
 # 其他設置
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', config['openai']['api_key'])
 JINA_API_URL = os.getenv('JINA_API_URL', config['jina']['api_url'])

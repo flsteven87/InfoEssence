@@ -4,10 +4,6 @@ from src.database.models import News  # 假設您有一個 News 模型
 from src.config.settings import DATABASE_URL
 from src.utils.file_utils import get_content_file_path
 
-# 確保 URL 使用 postgresql:// 而不是 postgres://
-if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-
 engine = create_engine(DATABASE_URL)
 Session = sessionmaker(bind=engine)
 

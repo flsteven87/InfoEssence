@@ -8,11 +8,6 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from src.config.settings import RSS_CONFIG, DATABASE_URL
-
-# 確保 URL 使用 postgresql:// 而不是 postgres://
-if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-
 from src.database.operations import upsert_media, upsert_feed, upsert_news
 from src.database.models import News
 from src.services.feed_parser import FeedParser
