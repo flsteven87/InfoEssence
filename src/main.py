@@ -140,15 +140,15 @@ class InfoEssence:
                 except Exception as e:
                     logging.error(f"處理新聞 ID {item.id} 時發生錯誤：{str(e)}")
             
-            # 確保所有圖片都已生成後，再進行整合
-            self.image_integrator.integrate_ig_images()
-            logging.info("已完成圖片整合")
-
             if ig_posts:
                 save_path = self.instagram_post_generator.save_instagram_posts(ig_posts)
                 logging.info(f"成功保存 {len(ig_posts)} 條 Instagram 內容：{save_path}")
             else:
                 logging.warning("沒有生成任何 Instagram 內容")
+
+            # 確保所有圖片都已生成後，再進行整合
+            self.image_integrator.integrate_ig_images()
+            logging.info("已完成圖片整合")
 
         else:
             logging.warning("沒有選出任何新聞")
@@ -174,6 +174,7 @@ def main():
         info_essence.update_media_and_feeds()
         info_essence.fetch_and_store_news()
         info_essence.choose_generate_and_post(5)
+        info_essence.instagram_poster.post_auto_selected_news()
     else:
         if args.update:
             info_essence.update_media_and_feeds()
