@@ -75,32 +75,45 @@ class InstagramPoster:
 
         try:
             client = openai.OpenAI()
-            response = client.chat.completions.create(
-                model="gpt-4o-2024-08-06",
-                temperature=0,
-                messages=[
-                    {"role": "system", "content": "你是一位專業的社交媒體編輯，擅長選擇最適合在 Instagram 上發布的新聞。"},
-                    {"role": "user", "content": prompt}
-                ],
-                tools=[{
-                    "type": "function",
-                    "function": {
-                        "name": "output_chosen_instagram_post",
-                        "description": "選擇最適合在 Instagram 上發布的貼文。",
-                        "parameters": ChosenInstagramPost.model_json_schema()
-                    }
-                }]
-            )
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    response = client.chat.completions.create(
+                        model="gpt-4o-2024-08-06",
+                        temperature=0,
+                        messages=[
+                            {"role": "system", "content": "你是一位專業的社交媒體編輯，擅長選擇最適合在 Instagram 上發布的新聞。"},
+                            {"role": "user", "content": prompt}
+                        ],
+                        tools=[{
+                            "type": "function",
+                            "function": {
+                                "name": "output_chosen_instagram_post",
+                                "description": "選擇最適合在 Instagram 上發布的貼文。",
+                                "parameters": ChosenInstagramPost.model_json_schema()
+                            }
+                        }]
+                    )
 
+                    tool_call = response.choices[0].message.tool_calls[0]
+                    if tool_call.function.name == "output_chosen_instagram_post":
+                        chosen_post = ChosenInstagramPost.model_validate_json(tool_call.function.arguments)
+                        print(f"AI 選擇了 Instagram 貼文 ID: {chosen_post.id}")
+                        return next((post for post in instagram_posts if post.id == chosen_post.id), None)
+                    else:
+                        print("未預期的函數調用，重試中...")
+                        continue
 
-            tool_call = response.choices[0].message.tool_calls[0]
-            if tool_call.function.name == "output_chosen_instagram_post":
-                chosen_post = ChosenInstagramPost.model_validate_json(tool_call.function.arguments)
-                print(f"AI 選擇了 Instagram 貼文 ID: {chosen_post.id}")
-                return next((post for post in instagram_posts if post.id == chosen_post.id), None)
-            else:
-                print("未預期的函數調用")
-                return None
+                except openai.APIError as e:
+                    if attempt < max_retries - 1:
+                        print(f"API 錯誤，重試中... (嘗試 {attempt + 1}/{max_retries})")
+                        time.sleep(2 ** attempt)  # 指數退避
+                    else:
+                        raise
+
+            print("達到最大重試次數，無法選擇 Instagram 貼文")
+            return None
+
         except Exception as e:
             print(f"選擇 Instagram 貼文時發生錯誤: {e}")
             return None
