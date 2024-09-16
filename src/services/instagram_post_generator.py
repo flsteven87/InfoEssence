@@ -28,7 +28,7 @@ class InstagramPostGenerator:
         self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
         self.system_prompt = self.load_prompt_template()
         self.title_font_path = "./src/assets/jf-openhuninn-2.0.ttf"
-        self.max_regeneration_attempts = 10
+        self.max_regeneration_attempts = 30
 
         self.title_font_size = int(56)
         self.title_font = ImageFont.truetype(self.title_font_path, self.title_font_size)
