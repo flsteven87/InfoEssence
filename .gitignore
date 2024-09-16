@@ -165,6 +165,7 @@ cython_debug/
 .DS_Store
 news/*
 image/*
+instagram_images/*
 chosen_news/*
 instagram_posts/*
 published/*
