@@ -2,14 +2,13 @@ import os
 import yaml
 from dotenv import load_dotenv
 from pathlib import Path
-import logging
-
 
 # 確定當前環境
 ENV = os.getenv('ENV', 'development')
-# 載入對應的 .env 文件
+
+# 根據環境載入對應的 .env 文件
 if ENV == 'production':
-    load_dotenv('.env.production')
+    load_dotenv('.env_heroku')
 else:
     load_dotenv('.env')
 
@@ -39,24 +38,30 @@ config = process_config(load_yaml_config('config.yaml'))
 rss_config = process_config(load_yaml_config('rss_feed.yaml'))
 
 # 數據庫設置
-DB_USER = config['database']['user']
-DB_PASSWORD = config['database']['password']
-DB_HOST = config['database']['host']
-DB_NAME = config['database']['name']
-DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/{DB_NAME}"
+DATABASE_URL = os.getenv('DATABASE_URL')  # 優先使用環境變量中的 DATABASE_URL
+if not DATABASE_URL:
+    DB_USER = os.getenv('DB_USER', config['database']['user'])
+    DB_PASSWORD = os.getenv('DB_PASSWORD', config['database']['password'])
+    DB_HOST = os.getenv('DB_HOST', config['database']['host'])
+    DB_NAME = os.getenv('DB_NAME', config['database']['name'])
+    DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/{DB_NAME}"
 
-print(DATABASE_URL)
 # 其他設置
-OPENAI_API_KEY = config['openai']['api_key']
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', config['openai']['api_key'])
+JINA_API_URL = os.getenv('JINA_API_URL', config['jina']['api_url'])
+
+# RSS 配置
 RSS_CONFIG = rss_config
 
-# 可選：如果需要 JINA_API_URL，取消下面的註釋
-JINA_API_URL = config['jina']['api_url']
-
-# 可選：如果需要代理設置，取消下面的註釋
+# 可選：如果需要代理設置
 USE_PROXY = config.get('proxy', {}).get('use_proxy', False)
 PROXIES = []
 
 def update_proxies(new_proxies):
     global PROXIES
     PROXIES = new_proxies
+
+# 顯示當前使用的環境
+print(f"Current environment: {ENV}")
+print(f"Using DATABASE_URL: {DATABASE_URL}")
+print(f"Using JINA_API_URL: {JINA_API_URL}")
