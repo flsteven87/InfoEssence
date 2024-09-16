@@ -15,5 +15,3 @@ ratelimit==2.2.1
 Requests==2.32.3
 SQLAlchemy==2.0.34
 streamlit==1.38.0
-psycopg2-binary==2.9.9
-SQLAlchemy==2.0.23
