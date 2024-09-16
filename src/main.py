@@ -1,5 +1,7 @@
 import argparse
 import logging
+import schedule
+import time
 import os
 from datetime import datetime
 from dateutil.parser import parse as parse_date
@@ -121,6 +123,17 @@ class InfoEssence:
             else:
                 logging.warning("沒有找到最新的已選擇新聞")
 
+def run_complete_process():
+    info_essence = InfoEssence()
+    info_essence.update_media_and_feeds()
+    info_essence.fetch_and_store_news()
+    info_essence.choose_and_generate_post(10)
+    try:
+        info_essence.instagram_poster.auto_post()
+        logging.info("已成功發布到 Instagram")
+    except Exception as e:
+        logging.error(f"發布到 Instagram 時發生錯誤：{str(e)}")
+
 def main():
     parser = argparse.ArgumentParser(description="InfoEssence: RSS Feed 處理器")
     parser.add_argument('-u', '--update', action='store_true', help='更新媒體和 Feed 資訊')
@@ -130,29 +143,31 @@ def main():
     parser.add_argument('--choose', type=int, help='選擇指定數量的重要新聞並生成圖片')
     parser.add_argument('--post', action='store_true', help='自動選擇並發布新聞到 Instagram')
     parser.add_argument('--list-posts', action='store_true', help='列出最新的 Instagram 貼文')
+    parser.add_argument('--schedule', action='store_true', help='啟動排程，每半小時執行一次完整流程')
     args = parser.parse_args()
 
     info_essence = InfoEssence()
 
-    if not any(vars(args).values()):
-        # 如果沒有參數，執行完整流程
-        info_essence.update_media_and_feeds()
-        info_essence.fetch_and_store_news()
-        info_essence.choose_and_generate_post(10)
-        # 自動發布到 Instagram
-        try:
-            info_essence.instagram_poster.auto_post()
-            logging.info("已成功發布到 Instagram")
-        except Exception as e:
-            logging.error(f"發布到 Instagram 時發生錯誤：{str(e)}")
-
+    if args.schedule:
+        logging.info("啟動排程模式，每半小時執行一次完整流程")
+        schedule.every(30).minutes.do(run_complete_process)
+        logging.info("立即執行第一次完整流程")
+        run_complete_process()  # 立即執行一次
+        
+        while True:
+            schedule.run_pending()
+            logging.debug("檢查是否有需要執行的任務")
+            time.sleep(60)  # 每分鐘檢查一次，而不是每秒
+    
+    elif not any(vars(args).values()):
+        run_complete_process()
     else:
         if args.update:
             info_essence.update_media_and_feeds()
         if args.fetch:
             info_essence.fetch_and_store_news(re_crawl=args.re_crawl, re_summarize=args.re_summarize)
         if args.choose:
-            info_essence.choose_generate_and_post(args.choose)
+            info_essence.choose_and_generate_post(args.choose)
         if args.post:
             info_essence.instagram_poster.auto_post()
         if args.list_posts:
