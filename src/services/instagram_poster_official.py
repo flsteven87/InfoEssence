@@ -50,15 +50,20 @@ class InstagramPoster:
             published_posts = session.query(Published.instagram_post_id).all()
             return [post.instagram_post_id for post in published_posts]
 
+    def get_published_news_ids(self):
+        with self.SessionLocal() as session:
+            published_news = session.query(Published.news_id).distinct().all()
+            return [news.news_id for news in published_news]
+
     def select_instagram_post(self, instagram_posts):
         if not instagram_posts:
             return None
 
-        published_ids = self.get_published_instagram_post_ids()
-        unpublished_posts = [post for post in instagram_posts if post.id not in published_ids]
+        published_news_ids = self.get_published_news_ids()
+        unpublished_posts = [post for post in instagram_posts if post.news_id not in published_news_ids]
 
         if not unpublished_posts:
-            print("所有貼文都已發布")
+            print("所有新聞的貼文都已發布")
             return None
 
         posts_data = []
