@@ -51,6 +51,6 @@ Before making your selection, ask yourself:
 
 Here is the list of news items to choose from:
 
-{news_list}
+{posts_list}
 
 Please select the single most suitable news item for Instagram, considering the title (ig_title) and caption (ig_caption) provided. Return only the ID of the chosen news item.

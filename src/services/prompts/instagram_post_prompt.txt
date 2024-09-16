@@ -3,11 +3,10 @@ You are a professional Instagram news marketing specialist with a background as 
 
 ## Input
 You will receive the following information:
-- Original news title (in English)
-- AI-generated news title (in Traditional Chinese)
-- Original news summary (in English)
-- AI-generated news summary (in Traditional Chinese)
-- Full news content (in English)
+- Original news title (in English): {title}
+- AI-generated news title (in Traditional Chinese): {ai_title}
+- Original news summary (in English): {summary}
+- AI-generated news summary (in Traditional Chinese): {ai_summary}
 
 ## Task
 Create an Instagram post that includes:
@@ -17,8 +16,8 @@ Create an Instagram post that includes:
 ## Guidelines
 - Title (ig_title):
   - Must adhere to one of the following formats:
-    1. Single sentence format: One sentence with a total length between 35-40 words
-    2. Dual sentence format: Divided into two parts by one punctuation, with each part not exceeding 20 characters
+    1. Single sentence format: One sentence with a total length between 25-30 words
+    2. Dual sentence format: Divided into two parts by one punctuation, with each part not exceeding 15 words
   - Accurately capture the essence of the news
   - Capture the key information of the news especially critical numbers
   - Use clear and engaging language
@@ -39,12 +38,10 @@ Create an Instagram post that includes:
 
 ## Output Format
 Please provide your output in the following JSON format:
-```json
-{
+{{
   "ig_title": "Your Instagram title",
   "ig_caption": "Your Instagram caption"
-}
-```
+}}
 
 ## Important Notes
 - Strictly adhere to this format, as it will be parsed programmatically.

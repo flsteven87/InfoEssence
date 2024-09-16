@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from sqlalchemy import create_engine, func
 from sqlalchemy.orm import sessionmaker
 from src.config.settings import DATABASE_URL, OPENAI_API_KEY
-from src.database.models import News, Media, Feed
+from src.database.models import News, Media, Feed, File, ChosenNews
 import os
 import logging
 from datetime import date, timedelta
@@ -49,13 +49,23 @@ class NewsChooser:
 
     def choose_important_news(self, news_list):
         total_news = len(news_list)
-        news_data = [{
-            "id": news.id,
-            "title": news.title,
-            "summary": news.summary,
-            "ai_title": news.ai_title,
-            "ai_summary": news.ai_summary
-        } for news in news_list]
+        news_data = []
+        
+        with self.SessionLocal() as session:
+            for news in news_list:
+                md_content = ""
+                if news.md_file_id:
+                    md_file = session.query(File).filter(File.id == news.md_file_id).first()
+                    if md_file:
+                        md_content = md_file.data.decode('utf-8')
+                
+                news_data.append({
+                    "id": news.id,
+                    "title": news.title,
+                    "summary": news.summary,
+                    "ai_title": news.ai_title,
+                    "ai_summary": news.ai_summary
+                })
 
         prompt = self.prompt_template.format(n=self.n, news_list=news_data, total_news=total_news)
 
@@ -109,6 +119,14 @@ class NewsChooser:
         
         logger.info(f"已將選擇的新聞保存到 {filename}")
 
+    def save_chosen_news_to_database(self, chosen_news):
+        with self.SessionLocal() as session:
+            news_ids = [item.id for item in chosen_news]
+            chosen_news_entry = ChosenNews(news_ids=news_ids)
+            session.add(chosen_news_entry)
+            session.commit()
+            logger.info(f"已將選擇的新聞保存到數據庫，ID: {chosen_news_entry.id}")
+
     def run(self):
         news_list = self.load_news()
         total_news = len(news_list)
@@ -122,7 +140,8 @@ class NewsChooser:
                 print(f"ID: {item.id}, 標題: {item.title}")
             print(f"\n總共從 {total_news} 條新聞中選出了 {len(chosen_news)} 條重要新聞")
             
-            self.save_chosen_news_to_csv(chosen_news)
+            # self.save_chosen_news_to_csv(chosen_news)
+            self.save_chosen_news_to_database(chosen_news)
         else:
             logger.warning("沒有選出任何新聞")
             print(f"從 {total_news} 條新聞中沒有選出任何重要新聞")

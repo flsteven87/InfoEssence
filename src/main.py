@@ -8,8 +8,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from src.config.settings import RSS_CONFIG, DATABASE_URL
-from src.database.operations import upsert_media, upsert_feed, upsert_news
-from src.database.models import News
+from src.database.operations import upsert_media, upsert_feed, upsert_news_with_content
+from src.database.models import News, ChosenNews, InstagramPost
 from src.services.feed_parser import FeedParser
 from src.services.content_fetcher import ContentFetcher, ContentFetchException
 from src.services.news_summarizer import NewsSummarizer
@@ -19,7 +19,7 @@ from src.services.image_generator import ImageGenerator
 from src.services.image_integrator import ImageIntegrator
 from src.utils.file_utils import get_content_file_path, get_image_file_path
 from src.utils.database_utils import get_news_by_id
-from src.services.instagram_poster import InstagramPoster
+from src.services.instagram_poster_official import InstagramPoster
 
 # 設置日誌記錄
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -31,27 +31,22 @@ class InfoEssence:
     def __init__(self):
         self.engine = create_engine(DATABASE_URL)
         self.SessionLocal = sessionmaker(bind=self.engine)
-        self.content_fetcher = ContentFetcher()
+        self.content_fetcher = ContentFetcher(self.SessionLocal())
         self.feed_parser = FeedParser()
         self.news_summarizer = NewsSummarizer()
         self.image_generator = ImageGenerator()
         self.instagram_post_generator = InstagramPostGenerator()
         self.image_integrator = ImageIntegrator()
-        self.instagram_poster = InstagramPoster()
+        self.instagram_poster = InstagramPoster()  # 已註釋
 
-    @staticmethod
-    def ensure_directory(path):
-        os.makedirs(path, exist_ok=True)
-
-    def save_content(self, media_name, feed_name, news_id, title, content):
-        file_path = get_content_file_path(media_name, feed_name, news_id, title)
-        directory = os.path.dirname(file_path)
-        self.ensure_directory(directory)
-        
-        with open(file_path, 'w', encoding='utf-8') as f:
-            f.write(content)
-        
-        return file_path
+    def update_media_and_feeds(self):
+        logging.info("開始更新 Media 和 Feed 資訊")
+        with self.SessionLocal() as db:
+            for media_info in RSS_CONFIG.values():
+                media_id = upsert_media(db, name=media_info['name'], url=media_info['url'])
+                for feed in media_info['feeds']:
+                    upsert_feed(db, url=feed['url'], media_id=media_id, name=feed['name'])
+        logging.info("Media 和 Feed 資訊已更新完成")
 
     def fetch_and_store_news(self, re_crawl=False, re_summarize=False):
         with self.SessionLocal() as db:
@@ -70,88 +65,61 @@ class InfoEssence:
                             if existing_news and not re_crawl:
                                 continue
                             
-                            if re_crawl or not existing_news:
-                                content = self.content_fetcher.fetch_content(entry['link'])
-                            else:
-                                content = None
+                            news_data = {
+                                'link': entry['link'],
+                                'title': entry['title'],
+                                'summary': entry['summary'],
+                                'published_at': parse_date(entry['published']),
+                                'media_id': media_id,
+                                'feed_id': feed_id,
+                            }
                             
-                            ai_title, ai_summary = None, None
-                            if re_summarize:
+                            content = self.content_fetcher.fetch_and_save_content(entry['link'], news_data)
+                            
+                            if re_summarize or not existing_news:
                                 ai_title, ai_summary, _ = self.news_summarizer.summarize_content(entry['title'], content)
+                                db.query(News).filter(News.link == entry['link']).update({
+                                    'ai_title': ai_title,
+                                    'ai_summary': ai_summary
+                                })
+                                db.commit()
                             
-                            published_at = parse_date(entry['published'])
-                            
-                            news_id = upsert_news(
-                                db,
-                                link=entry['link'],
-                                title=entry['title'],
-                                summary=entry['summary'],
-                                ai_title=ai_title,
-                                ai_summary=ai_summary,
-                                published_at=published_at,
-                                media_id=media_id,
-                                feed_id=feed_id,
-                                update_ai_fields=re_summarize
-                            )
-                            
-                            if content:
-                                self.save_content(media_info['name'], feed['name'], news_id, entry['title'], content)
-                            
-                        except ContentFetchException as e:
-                            logging.error(f"獲取內容時發生錯誤：{e},{entry['link']}")
                         except Exception as e:
-                            logging.error(f"處理新聞時發生錯誤：{e},{entry['link']}")
+                            logging.error(f"處理新聞時發生錯誤：{str(e)},{entry['link']}")
+                            db.rollback()
 
-    def update_media_and_feeds(self):
-        logging.info("開始更新媒體和 Feed 資訊")
-        with self.SessionLocal() as db:
-            for media_info in RSS_CONFIG.values():
-                media_id = upsert_media(db, name=media_info['name'], url=media_info['url'])
-                for feed in media_info['feeds']:
-                    upsert_feed(db, url=feed['url'], media_id=media_id, name=feed['name'])
-        logging.info("媒體和 Feed 資訊已更新完成")
-
-    def choose_generate_and_post(self, num_chosen):
+    def choose_and_generate_post(self, num_chosen):
         chooser = NewsChooser(num_chosen)
-        news_list = chooser.load_news()
-        chosen_news = chooser.choose_important_news(news_list)
-        chooser.save_chosen_news_to_csv(chosen_news)
-        
-        if chosen_news:
-            logging.info(f"從 {len(news_list)} 條新聞中選出了 {len(chosen_news)} 條重要新聞")
-            
-            ig_posts = []
-            for item in chosen_news:
-                try:
-                    news_data = get_news_by_id(item.id)
-                    existing_image_path = get_image_file_path(news_data['media_name'], news_data['feed_name'], news_data['id'], news_data['title'])
-                    if os.path.exists(existing_image_path):
-                        logging.info(f"新聞 ID {item.id} 的圖片已存在：{existing_image_path}")
-                    else:
-                        image_path = self.image_generator.generate_news_image(item.id)
-                        if image_path:
-                            logging.info(f"成功為新聞 ID {item.id} 生成圖片：{image_path}")
-                        else:
-                            logging.warning(f"無法為新聞 ID {item.id} 生成圖片")
+        chooser.run()
                     
-                    ig_post = self.instagram_post_generator.generate_instagram_post(item.id)
-                    ig_posts.append(ig_post)
-                    logging.info(f"成功為新聞 ID {item.id} 生成 Instagram 內容")
-                except Exception as e:
-                    logging.error(f"處理新聞 ID {item.id} 時發生錯誤：{str(e)}")
-            
-            if ig_posts:
-                save_path = self.instagram_post_generator.save_instagram_posts(ig_posts)
-                logging.info(f"成功保存 {len(ig_posts)} 條 Instagram 內容：{save_path}")
+        # 生成 Instagram 貼文並存入資料庫
+        self.instagram_post_generator.generate_instagram_posts()
+        
+        # 從資料庫獲取最新的 Instagram 貼文
+        with self.SessionLocal() as db:
+            latest_chosen_news = db.query(ChosenNews).order_by(ChosenNews.timestamp.desc()).first()
+            print(latest_chosen_news)
+            if latest_chosen_news:
+                ig_posts = db.query(InstagramPost).filter(InstagramPost.chosen_news_id == latest_chosen_news.id).all()
+                
+                if ig_posts:
+                    logging.info(f"成功獲取 {len(ig_posts)} 條 Instagram 貼文")
+                    
+                    # 生成圖片並存入資料庫
+                    for post in ig_posts:
+                        try:
+                            self.image_generator.generate_news_image(post.news_id)
+                            logging.info(f"成功為新聞 ID {post.news_id} 生成圖片")
+                        except Exception as e:
+                            logging.error(f"處理新聞 ID {post.news_id} 的圖片時發生錯誤：{str(e)}")
+                    
+                    # 整合圖片
+                    self.image_integrator.integrate_ig_images()
+                    logging.info("已完成圖片整合")
+                else:
+                    logging.warning("沒有找到任何 Instagram 貼文")
             else:
-                logging.warning("沒有生成任何 Instagram 內容")
-
-            # 確保所有圖片都已生成後，再進行整合
-            self.image_integrator.integrate_ig_images()
-            logging.info("已完成圖片整合")
-
-        else:
-            logging.warning("沒有選出任何新聞")
+                logging.warning("沒有找到最新的已選擇新聞")
 
 def main():
     parser = argparse.ArgumentParser(description="InfoEssence: RSS Feed 處理器")
@@ -161,20 +129,26 @@ def main():
     parser.add_argument('--re-summarize', action='store_true', help='重新進行新聞總結')
     parser.add_argument('--choose', type=int, help='選擇指定數量的重要新聞並生成圖片')
     parser.add_argument('--post', action='store_true', help='自動選擇並發布新聞到 Instagram')
+    parser.add_argument('--list-posts', action='store_true', help='列出最新的 Instagram 貼文')
     args = parser.parse_args()
 
     info_essence = InfoEssence()
 
     new_proxies = info_essence.content_fetcher.update_proxy_list()
-    logging.info("代理列表已更新")
+    logging.info(f"代理列表已更新：{new_proxies}")
 
-    # 檢查是否有任何參數被設置
     if not any(vars(args).values()):
         # 如果沒有參數，執行完整流程
         info_essence.update_media_and_feeds()
         info_essence.fetch_and_store_news()
-        info_essence.choose_generate_and_post(5)
-        info_essence.instagram_poster.post_auto_selected_news()
+        info_essence.choose_and_generate_post(10)
+        # 自動發布到 Instagram
+        try:
+            info_essence.instagram_poster.auto_post()
+            logging.info("已成功發布到 Instagram")
+        except Exception as e:
+            logging.error(f"發布到 Instagram 時發生錯誤：{str(e)}")
+
     else:
         if args.update:
             info_essence.update_media_and_feeds()
@@ -183,9 +157,29 @@ def main():
         if args.choose:
             info_essence.choose_generate_and_post(args.choose)
         if args.post:
-            info_essence.instagram_poster.post_auto_selected_news()
+            info_essence.instagram_poster.auto_post()
+        if args.list_posts:
+            list_latest_instagram_posts(info_essence.SessionLocal())
 
     logging.info("處理完成")
+
+def list_latest_instagram_posts(db_session):
+    with db_session() as session:
+        latest_chosen_news = session.query(ChosenNews).order_by(ChosenNews.timestamp.desc()).first()
+        if latest_chosen_news:
+            posts = session.query(InstagramPost).filter(InstagramPost.chosen_news_id == latest_chosen_news.id).all()
+            if posts:
+                print(f"最新的 Instagram 貼文 (生成於 {latest_chosen_news.timestamp}):")
+                for post in posts:
+                    news = session.query(News).filter(News.id == post.news_id).first()
+                    print(f"\n新聞 ID: {post.news_id}")
+                    print(f"原始標題: {news.title}")
+                    print(f"Instagram 標題: {post.ig_title}")
+                    print(f"Instagram 說明: {post.ig_caption[:100]}...")  # 只顯示前100個字符
+            else:
+                print("沒有找到最新的 Instagram 貼文")
+        else:
+            print("沒有找到已選擇的新聞")
 
 if __name__ == "__main__":
     main()

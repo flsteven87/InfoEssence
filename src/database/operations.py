@@ -1,9 +1,9 @@
 from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.orm import Session, sessionmaker
-from .models import Media, Feed, News, Base
-from datetime import datetime
-from sqlalchemy import create_engine, text
-from src.config.settings import DATABASE_URL
+from sqlalchemy.orm import Session
+from .models import Media, Feed, News, File, InstagramPost
+import hashlib
+import logging
+from sqlalchemy.exc import SQLAlchemyError
 
 def upsert_media(db: Session, name: str, url: str) -> int:
     stmt = insert(Media).values(name=name, url=url)
@@ -25,68 +25,116 @@ def upsert_feed(db: Session, url: str, media_id: int, name: str) -> int:
     db.commit()
     return result.inserted_primary_key[0]
 
-def upsert_news(db: Session, link: str, title: str, summary: str, ai_title: str, ai_summary: str, published_at: datetime, media_id: int, feed_id: int, update_ai_fields: bool = True) -> int:
-    stmt = insert(News).values(
-        link=link,
-        title=title,
-        summary=summary,
-        ai_title=ai_title,
-        ai_summary=ai_summary,
-        published_at=published_at,
-        media_id=media_id,
-        feed_id=feed_id
-    )
-    
-    set_dict = {
-        'title': stmt.excluded.title,
-        'summary': stmt.excluded.summary,
-        'published_at': stmt.excluded.published_at,
-        'media_id': stmt.excluded.media_id,
-        'feed_id': stmt.excluded.feed_id
-    }
-    
-    if update_ai_fields:
-        set_dict.update({
-            'ai_title': stmt.excluded.ai_title,
-            'ai_summary': stmt.excluded.ai_summary
-        })
-    
-    stmt = stmt.on_conflict_do_update(
-        index_elements=['link'],
-        set_=set_dict
-    )
-    
-    result = db.execute(stmt)
+def upsert_news_with_content(db: Session, news_data: dict, md_content: str) -> int:
+    try:
+        url_hash = hashlib.md5(news_data['link'].encode()).hexdigest()
+        
+        md_file = File(
+            filename=f"{url_hash}.md",
+            content_type="text/markdown",
+            data=md_content.encode('utf-8')
+        )
+        db.add(md_file)
+        db.flush()
+
+        news_values = {
+            'link': news_data['link'],
+            'title': news_data['title'],
+            'summary': news_data['summary'],
+            'ai_title': news_data.get('ai_title'),
+            'ai_summary': news_data.get('ai_summary'),
+            'published_at': news_data['published_at'],
+            'media_id': news_data['media_id'],
+            'feed_id': news_data['feed_id'],
+            'md_file_id': md_file.id
+        }
+
+        stmt = insert(News).values(**news_values)
+        stmt = stmt.on_conflict_do_update(
+            index_elements=['link'],
+            set_={
+                'title': stmt.excluded.title,
+                'summary': stmt.excluded.summary,
+                'ai_title': stmt.excluded.ai_title,
+                'ai_summary': stmt.excluded.ai_summary,
+                'published_at': stmt.excluded.published_at,
+                'media_id': stmt.excluded.media_id,
+                'feed_id': stmt.excluded.feed_id,
+                'md_file_id': stmt.excluded.md_file_id
+            }
+        )
+        
+        result = db.execute(stmt)
+        db.commit()
+        return result.inserted_primary_key[0]
+    except SQLAlchemyError as e:
+        db.rollback()
+        logging.error(f"數據庫操作錯誤：{str(e)}")
+        raise
+
+def upsert_news_with_png(db: Session, news_id: int, png_content: bytes) -> int:
+    try:
+        news = db.query(News).filter(News.id == news_id).first()
+        if not news:
+            raise ValueError(f"找不到 ID 為 {news_id} 的新聞記錄")
+
+        url_hash = hashlib.md5(news.link.encode()).hexdigest()
+        
+        png_file = File(
+            filename=f"{url_hash}.png",
+            content_type="image/png",
+            data=png_content
+        )
+        db.add(png_file)
+        db.flush()
+
+        news.png_file_id = png_file.id
+        db.commit()
+
+        return news.id
+    except SQLAlchemyError as e:
+        db.rollback()
+        logging.error(f"數據庫操作錯誤：{str(e)}")
+        raise
+
+def upsert_file(db: Session, filename: str, content_type: str, data: bytes) -> int:
+    file = db.query(File).filter(File.filename == filename).first()
+    if file:
+        file.content_type = content_type
+        file.data = data
+    else:
+        file = File(
+            filename=filename,
+            content_type=content_type,
+            data=data
+        )
+        db.add(file)
     db.commit()
-    return result.inserted_primary_key[0]
+    db.refresh(file)
+    return file.id
 
-def init_db():
-    engine = create_engine(DATABASE_URL)
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
-    print("數據庫已初始化")
+def upsert_ig_post_with_png(db: Session, post_id: int, png_content: bytes) -> int:
+    try:
+        ig_post = db.query(InstagramPost).filter(InstagramPost.id == post_id).first()
+        if not ig_post:
+            raise ValueError(f"找不到 ID 為 {post_id} 的 Instagram 貼文記錄")
 
-def truncate_tables(db: Session):
-    tables = ['news', 'feeds', 'media']
-    for table in tables:
-        db.execute(text(f"TRUNCATE TABLE {table} RESTART IDENTITY CASCADE"))
-    db.commit()
-    print("所有表格已清空")
+        # 使用貼文 ID 和新聞 ID 來生成唯一的文件名
+        filename = f"integrated_{ig_post.news_id}_{post_id}.png"
+        
+        png_file = File(
+            filename=filename,
+            content_type="image/png",
+            data=png_content
+        )
+        db.add(png_file)
+        db.flush()
 
-if __name__ == "__main__":
-    import argparse
-    
-    parser = argparse.ArgumentParser(description="數據庫操作工具")
-    parser.add_argument('action', choices=['init', 'truncate'], help="選擇操作：init（初始化數據庫）或 truncate（清空表格）")
-    
-    args = parser.parse_args()
-    
-    if args.action == 'init':
-        init_db()
-    elif args.action == 'truncate':
-        engine = create_engine(DATABASE_URL)
-        SessionLocal = sessionmaker(bind=engine)
-        with SessionLocal() as db:
-            truncate_tables(db)
-    
-    print(f"{args.action} 操作完成")
+        ig_post.integrated_image_id = png_file.id
+        db.commit()
+
+        return ig_post.id
+    except SQLAlchemyError as e:
+        db.rollback()
+        logging.error(f"數據庫操作錯誤：{str(e)}")
+        raise

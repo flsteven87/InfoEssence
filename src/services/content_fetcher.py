@@ -5,6 +5,8 @@ import logging
 from ratelimit import limits, sleep_and_retry
 from bs4 import BeautifulSoup
 from src.config.settings import JINA_API_URL, USE_PROXY, PROXIES, update_proxies
+from src.database.operations import upsert_news_with_content
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
@@ -13,14 +15,15 @@ class ContentFetchException(Exception):
     pass
 
 class ContentFetcher:
-    def __init__(self):
+    def __init__(self, db: Session):
+        self.db = db
         self.jina_api_url = JINA_API_URL
         self.use_proxy = USE_PROXY
         self.proxies = PROXIES
 
     @sleep_and_retry
     @limits(calls=20, period=60)  # 每分鐘 20 次請求
-    def fetch_content(self, url: str) -> str:
+    def fetch_and_save_content(self, url: str, news_data: dict) -> str:
         jina_reader_url = f"{self.jina_api_url}/{url}"
         
         for attempt in range(2):  # 最多嘗試 2 次
@@ -28,13 +31,17 @@ class ContentFetcher:
                 # 首先嘗試不使用代理
                 response = self._make_request(jina_reader_url)
                 if response.status_code == 200:
-                    return self._handle_successful_response(response, url)
+                    content = response.text
+                    news_id = upsert_news_with_content(self.db, news_data, content)
+                    return content
                 
                 # 如果狀態碼不是 200，嘗試使用代理
                 if self.use_proxy:
                     response = self._try_proxies(jina_reader_url)
                     if response:
-                        return self._handle_successful_response(response, url)
+                        content = response.text
+                        news_id = upsert_news_with_content(self.db, news_data, content)
+                        return content
                 
                 # 處理非 200 狀態碼
                 response.raise_for_status()

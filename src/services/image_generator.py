@@ -3,12 +3,14 @@ from typing import Dict, Any
 from openai import OpenAI
 from pydantic import BaseModel
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, Session
 import requests
 
 from src.config.settings import OPENAI_API_KEY, DATABASE_URL
 from src.utils.file_utils import get_image_file_path, get_content_file_path
-from src.utils.database_utils import get_news_by_id
+from src.utils.database_utils import get_news_by_id, Session
+from src.database.models import News, File
+from src.database.operations import upsert_news_with_png
 
 class ImagePrompt(BaseModel):
     dalle_prompt: str
@@ -62,73 +64,80 @@ class ImageGenerator:
             print(f"生成圖像提示時發生錯誤：{e}")
             return f"處理過程中發生錯誤: {str(e)}"
 
-    def generate_news_image(self, news_id: int) -> str:
+    def generate_news_image(self, news_id: int, re_gen: bool = False) -> bool:
         try:
-            news_data = get_news_by_id(news_id)
-            content_file_path = get_content_file_path(news_data['media_name'], news_data['feed_name'], news_data['id'], news_data['title'])
-            
-            if not os.path.exists(content_file_path):
-                raise Exception("內容文件不存在")
+            with Session() as db:
+                news = get_news_by_id(db, news_id)
+                if not news:
+                    raise Exception(f"找不到 ID 為 {news_id} 的新聞")
 
-            with open(content_file_path, 'r', encoding='utf-8') as f:
-                content = f.read()
+                # 檢查是否已存在圖片且不需要重新生成
+                if news.png_file_id and not re_gen:
+                    print(f"新聞 ID {news_id} 已有圖片，不需要重新生成。")
+                    return True
 
-            style = "news illustration style"
-            image_prompt = self._generate_image_prompt(news_data['ai_title'], news_data['ai_summary'], content, style)
-            
-            max_attempts = 2
-            for attempt in range(max_attempts):
-                try:
-                    response = self.client.images.generate(
-                        model="dall-e-3",
-                        prompt=image_prompt,
-                        size="1024x1024",
-                        quality="standard",
-                        n=1,
-                    )
+                # 將 News 對象轉換為字典
+                news_data = {
+                    'id': news.id,
+                    'title': news.title,
+                    'ai_title': news.ai_title,
+                    'ai_summary': news.ai_summary,
+                    'media_name': news.media.name if news.media else None,
+                    'feed_name': news.feed.name if news.feed else None,
+                }
 
-                    image_url = response.data[0].url
+                # 從數據庫獲取內容文件
+                if not news.md_file:
+                    raise Exception("內容文件不存在")
 
-                    image_response = requests.get(image_url)
-                    if image_response.status_code == 200:
-                        # 成功下載圖片，保存並返回
-                        save_path = get_image_file_path(
-                            media_name=news_data['media_name'],
-                            feed_name=news_data['feed_name'],
-                            news_id=news_data['id'],
-                            title=news_data['title']
+                content = news.md_file.data.decode('utf-8')
+
+                style = "news illustration style"
+                image_prompt = self._generate_image_prompt(news_data['ai_title'], news_data['ai_summary'], content, style)
+                
+                max_attempts = 2
+                for attempt in range(max_attempts):
+                    try:
+                        response = self.client.images.generate(
+                            model="dall-e-3",
+                            prompt=image_prompt,
+                            size="1024x1024",
+                            quality="standard",
+                            n=1,
                         )
 
-                        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+                        image_url = response.data[0].url
 
-                        with open(save_path, 'wb') as f:
-                            f.write(image_response.content)
+                        image_response = requests.get(image_url)
+                        if image_response.status_code == 200:
+                            # 成功下載圖片，保存到數據庫
+                            png_content = image_response.content
+                            upsert_news_with_png(db, news_id, png_content)
+                            return True
+                        elif image_response.status_code == 400 and attempt < max_attempts - 1:
+                            print(f"生成圖片失敗（狀態碼 400），正在重新生成提示並重試...")
+                            image_prompt = self._generate_image_prompt(news_data['ai_title'], news_data['ai_summary'], content, style)
+                        else:
+                            raise Exception(f"無法下載生成的圖像，狀態碼：{image_response.status_code}")
 
-                        return os.path.relpath(save_path, "./image")
-                    elif image_response.status_code == 400 and attempt < max_attempts - 1:
-                        print(f"生成圖片失敗（狀態碼 400），正在重新生成提示並重試...")
-                        image_prompt = self._generate_image_prompt(news_data['ai_title'], news_data['ai_summary'], content, style)
-                    else:
-                        raise Exception(f"無法下載生成的圖像，狀態碼：{image_response.status_code}")
+                    except Exception as e:
+                        if attempt < max_attempts - 1:
+                            print(f"嘗試 {attempt + 1} 失敗：{e}，正在重試...")
+                        else:
+                            raise
 
-                except Exception as e:
-                    if attempt < max_attempts - 1:
-                        print(f"嘗試 {attempt + 1} 失敗：{e}，正在重試...")
-                    else:
-                        raise
-
-            raise Exception("達到最大重試次數，無法生成圖片")
+                raise Exception("達到最大重試次數，無法生成圖片")
 
         except Exception as e:
             print(f"生成新聞圖片時發生錯誤：{e}")
-            return ""
+            return False
 
-def main(news_id: int) -> None:
+def main(news_id: int, re_gen: bool = False) -> None:
     image_generator = ImageGenerator()
     try:
-        image_url = image_generator.generate_news_image(news_id)
-        if image_url:
-            print(f"成功生成圖片。URL: {image_url}")
+        success = image_generator.generate_news_image(news_id, re_gen)
+        if success:
+            print(f"成功生成圖片並保存到數據庫。")
         else:
             print("圖片生成失敗")
     except Exception as e:
@@ -139,6 +148,7 @@ if __name__ == "__main__":
     
     parser = argparse.ArgumentParser(description="為指定的新聞生成圖片")
     parser.add_argument("news_id", type=int, help="要生成圖片的新聞 ID")
+    parser.add_argument("--re_gen", action="store_true", help="是否重新生成圖片")
     args = parser.parse_args()
     
-    main(args.news_id)
+    main(args.news_id, args.re_gen)

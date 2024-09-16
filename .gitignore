@@ -169,3 +169,5 @@ chosen_news/*
 instagram_posts/*
 published/*
 heroku.md
+heroku_dynos.md
+scheduler.md
