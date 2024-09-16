@@ -40,7 +40,7 @@ class NewsChooser:
 
     def load_news(self):
         now = datetime.now()
-        twenty_four_hours_ago = now - timedelta(hours=24)
+        twenty_four_hours_ago = now - timedelta(hours=12)
         with self.SessionLocal() as session:
             query = session.query(News).filter(
                 News.published_at.between(twenty_four_hours_ago, now)

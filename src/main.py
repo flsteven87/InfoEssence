@@ -19,6 +19,7 @@ from src.services.image_generator import ImageGenerator
 from src.services.image_integrator import ImageIntegrator
 from src.utils.file_utils import get_content_file_path, get_image_file_path
 from src.utils.database_utils import get_news_by_id
+from src.services.instagram_poster import InstagramPoster
 
 # 設置日誌記錄
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -36,6 +37,7 @@ class InfoEssence:
         self.image_generator = ImageGenerator()
         self.instagram_post_generator = InstagramPostGenerator()
         self.image_integrator = ImageIntegrator()
+        self.instagram_poster = InstagramPoster()
 
     @staticmethod
     def ensure_directory(path):
@@ -109,7 +111,7 @@ class InfoEssence:
                     upsert_feed(db, url=feed['url'], media_id=media_id, name=feed['name'])
         logging.info("媒體和 Feed 資訊已更新完成")
 
-    def choose_and_generate_images(self, num_chosen):
+    def choose_generate_and_post(self, num_chosen):
         chooser = NewsChooser(num_chosen)
         news_list = chooser.load_news()
         chosen_news = chooser.choose_important_news(news_list)
@@ -138,13 +140,20 @@ class InfoEssence:
                 except Exception as e:
                     logging.error(f"處理新聞 ID {item.id} 時發生錯誤：{str(e)}")
             
+            self.image_integrator.integrate_ig_images()
+
             if ig_posts:
                 save_path = self.instagram_post_generator.save_instagram_posts(ig_posts)
                 logging.info(f"成功保存 {len(ig_posts)} 條 Instagram 內容：{save_path}")
+                
+                # 新增：自動選擇並發布新聞到 Instagram
+                try:
+                    self.instagram_poster.post_auto_selected_news()
+                    logging.info("成功自動選擇並發布新聞到 Instagram")
+                except Exception as e:
+                    logging.error(f"自動發布新聞到 Instagram 時發生錯誤：{str(e)}")
             else:
                 logging.warning("沒有生成任何 Instagram 內容")
-
-            self.image_integrator.integrate_ig_images()
 
         else:
             logging.warning("沒有選出任何新聞")
@@ -156,6 +165,7 @@ def main():
     parser.add_argument('--re-crawl', action='store_true', help='重新爬取所有新聞內容')
     parser.add_argument('--re-summarize', action='store_true', help='重新進行新聞總結')
     parser.add_argument('--choose', type=int, help='選擇指定數量的重要新聞並生成圖片')
+    parser.add_argument('--post', action='store_true', help='自動選擇並發布新聞到 Instagram')
     args = parser.parse_args()
 
     info_essence = InfoEssence()
@@ -168,14 +178,16 @@ def main():
         # 如果沒有參數，執行完整流程
         info_essence.update_media_and_feeds()
         info_essence.fetch_and_store_news()
-        info_essence.choose_and_generate_images(5)
+        info_essence.choose_generate_and_post(5)
     else:
         if args.update:
             info_essence.update_media_and_feeds()
         if args.fetch:
             info_essence.fetch_and_store_news(re_crawl=args.re_crawl, re_summarize=args.re_summarize)
         if args.choose:
-            info_essence.choose_and_generate_images(args.choose)
+            info_essence.choose_generate_and_post(args.choose)
+        if args.post:
+            info_essence.instagram_poster.post_auto_selected_news()
 
     logging.info("處理完成")
 

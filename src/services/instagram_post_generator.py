@@ -28,6 +28,7 @@ class InstagramPostGenerator:
         self.SessionLocal = sessionmaker(bind=self.engine)
         self.system_prompt = self.load_prompt_template()
         self.title_font_path = "./src/assets/jf-openhuninn-2.0.ttf"
+        self.max_regeneration_attempts = 10
 
         # 搶先確認
         self.title_font_size = int(56)
@@ -52,6 +53,26 @@ class InstagramPostGenerator:
     def generate_instagram_post(self, news_id: int):
         news_data = get_news_by_id(news_id)
         
+        for attempt in range(self.max_regeneration_attempts):
+            result = self._generate_post_content(news_data)
+            
+            if self._is_title_valid(result.ig_title):
+                return {
+                    "ig_title": self.process_ig_title_fullwidth(result.ig_title),
+                    "ig_caption": result.ig_caption,
+                    "news_data": news_data
+                }
+            else:
+                logging.warning(f"第 {attempt + 1} 次嘗試：ig_title {result.ig_title} 寬度超過2行，重新生成")
+        
+        logging.error(f"無法生成符合寬度要求的 ig_title，使用最後一次生成的結果 {result.ig_title}")
+        return {
+            "ig_title": self.process_ig_title_fullwidth(result.ig_title),
+            "ig_caption": result.ig_caption,
+            "news_data": news_data
+        }
+
+    def _generate_post_content(self, news_data):
         user_prompt = f"""
         title: {news_data['title']}
         summary: {news_data['summary']}
@@ -78,17 +99,12 @@ class InstagramPostGenerator:
 
         tool_call = response.choices[0].message.tool_calls[0]
         if tool_call.function.name == "output_instagram_post":
-            result = InstagramPost.model_validate_json(tool_call.function.arguments)
-            if get_text_width(self.title_font, result.ig_title) > self.title_width_for_draw*2:
-                logging.warning(f"ig_title 寬度超過2行")
-                print(f"{result.ig_title}")
-            return {
-                "ig_title": self.process_ig_title_fullwidth(result.ig_title),
-                "ig_caption": result.ig_caption,
-                "news_data": news_data
-            }
+            return InstagramPost.model_validate_json(tool_call.function.arguments)
         else:
             raise ValueError("未收到預期的工具調用回應")
+
+    def _is_title_valid(self, title):
+        return get_text_width(self.title_font, title) <= self.title_width_for_draw * 2
 
     def save_instagram_posts(self, ig_posts: List[Dict], output_dir="./instagram_posts"):
         os.makedirs(output_dir, exist_ok=True)

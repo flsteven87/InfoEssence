@@ -167,3 +167,5 @@ news/*
 image/*
 chosen_news/*
 instagram_posts/*
+published/*
+heroku.md
