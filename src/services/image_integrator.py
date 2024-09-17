@@ -166,7 +166,7 @@ class ImageIntegrator:
         
         # 在新圖層上繪製半透明黑色矩形
         draw = ImageDraw.Draw(self.background)
-        draw.rectangle([(0, 0), (self.background_width, self.background_height)], fill=(0, 0, 0, 150))
+        draw.rectangle([(0, 0), (self.background_width, self.background_height)], fill=(0, 0, 0, 180))
         
         # 將背景圖層貼到原圖的底部
         self.img = self.img.convert('RGBA')
