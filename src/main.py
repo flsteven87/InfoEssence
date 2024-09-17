@@ -1,7 +1,5 @@
 import argparse
 import logging
-import schedule
-import time
 import os
 from datetime import datetime
 from dateutil.parser import parse as parse_date
@@ -143,23 +141,11 @@ def main():
     parser.add_argument('--choose', type=int, help='選擇指定數量的重要新聞並生成圖片')
     parser.add_argument('--post', action='store_true', help='自動選擇並發布新聞到 Instagram')
     parser.add_argument('--list-posts', action='store_true', help='列出最新的 Instagram 貼文')
-    parser.add_argument('--schedule', action='store_true', help='啟動排程，每半小時執行一次完整流程')
     args = parser.parse_args()
 
     info_essence = InfoEssence()
 
-    if args.schedule:
-        logging.info("啟動排程模式，每小時執行一次完整流程")
-        schedule.every(60).minutes.do(run_complete_process)
-        logging.info("立即執行第一次完整流程")
-        run_complete_process()  # 立即執行一次
-        
-        while True:
-            schedule.run_pending()
-            logging.debug("檢查是否有需要執行的任務")
-            time.sleep(60)  # 每分鐘檢查一次，而不是每秒
-    
-    elif not any(vars(args).values()):
+    if not any(vars(args).values()):
         run_complete_process()
     else:
         if args.update:
