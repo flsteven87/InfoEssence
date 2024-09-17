@@ -53,6 +53,6 @@ Before making your selection, ask yourself:
 
 Here is the list of news items to choose from:
 
-{news_list}
+{posts_list}
 
 Please select the single most critical news item for the Taiwanese audience, considering the title and content provided. Return only the ID of the chosen news item.
