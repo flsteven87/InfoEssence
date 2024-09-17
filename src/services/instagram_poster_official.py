@@ -57,6 +57,7 @@ class InstagramPoster:
 
     def select_instagram_post(self, instagram_posts):
         if not instagram_posts:
+            print("沒有可用的 Instagram 貼文")
             return None
 
         published_news_ids = self.get_published_news_ids()
@@ -74,7 +75,7 @@ class InstagramPoster:
                 "ig_caption": post.ig_caption
             })
 
-        print(posts_data)
+        print(f"準備選擇的貼文數據：{posts_data}")
 
         prompt = self.prompt_template.format(posts_list=posts_data)
 
@@ -84,7 +85,7 @@ class InstagramPoster:
             for attempt in range(max_retries):
                 try:
                     response = client.chat.completions.create(
-                        model="gpt-4o-2024-08-06",
+                        model="gpt-4o-2024-08-06",  # 請確認這是正確的模型名稱
                         temperature=0,
                         messages=[
                             {"role": "system", "content": "你是一位專業的社交媒體編輯，擅長選擇最適合在 Instagram 上發布的新聞。"},
@@ -100,13 +101,24 @@ class InstagramPoster:
                         }]
                     )
 
-                    tool_call = response.choices[0].message.tool_calls[0]
+                    print(f"OpenAI 回應：{response}")
+
+                    if not response.choices:
+                        print("OpenAI 回應中沒有選擇")
+                        continue
+
+                    message = response.choices[0].message
+                    if not message.tool_calls:
+                        print("回應中沒有工具調用")
+                        continue
+
+                    tool_call = message.tool_calls[0]
                     if tool_call.function.name == "output_chosen_instagram_post":
                         chosen_post = ChosenInstagramPost.model_validate_json(tool_call.function.arguments)
                         print(f"AI 選擇了 Instagram 貼文 ID: {chosen_post.id}")
                         return next((post for post in instagram_posts if post.id == chosen_post.id), None)
                     else:
-                        print("未預期的函數調用，重試中...")
+                        print(f"未預期的函數調用：{tool_call.function.name}")
                         continue
 
                 except openai.APIError as e:
