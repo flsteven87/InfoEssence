@@ -40,7 +40,7 @@ class NewsChooser:
 
     def load_news(self):
         now = datetime.now()
-        twenty_four_hours_ago = now - timedelta(hours=12)
+        twenty_four_hours_ago = now - timedelta(hours=6)
         with self.SessionLocal() as session:
             query = session.query(News).filter(
                 News.published_at.between(twenty_four_hours_ago, now)
@@ -130,7 +130,7 @@ class NewsChooser:
     def run(self):
         news_list = self.load_news()
         total_news = len(news_list)
-        logger.info(f"載入了 {total_news} 條過去 24 小時內發布的新聞")
+        logger.info(f"載入了 {total_news} 條過去 6 小時內發布的新聞")
 
         chosen_news = self.choose_important_news(news_list)
 

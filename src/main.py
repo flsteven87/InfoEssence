@@ -127,7 +127,7 @@ def run_complete_process():
     info_essence = InfoEssence()
     info_essence.update_media_and_feeds()
     info_essence.fetch_and_store_news()
-    info_essence.choose_and_generate_post(10)
+    info_essence.choose_and_generate_post(15)
     try:
         info_essence.instagram_poster.auto_post()
         logging.info("已成功發布到 Instagram")
@@ -149,8 +149,8 @@ def main():
     info_essence = InfoEssence()
 
     if args.schedule:
-        logging.info("啟動排程模式，每半小時執行一次完整流程")
-        schedule.every(30).minutes.do(run_complete_process)
+        logging.info("啟動排程模式，每小時執行一次完整流程")
+        schedule.every(60).minutes.do(run_complete_process)
         logging.info("立即執行第一次完整流程")
         run_complete_process()  # 立即執行一次
         
