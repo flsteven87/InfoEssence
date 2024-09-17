@@ -38,6 +38,11 @@ class ChosenNewsId(BaseModel):
     id: int
 ```
 
+## Important:
+- Return ONLY the ID of the chosen news item.
+- The ID must be an integer.
+- Do not include any explanations or additional text.
+
 ## Guidelines for Selection
 - Choose a story that truly matters for Taiwan's future, even if it might not be the most sensational headline.
 - Prioritize news that helps Taiwanese citizens understand the interconnectedness of global events and Taiwan's place in the world.
