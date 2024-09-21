@@ -16,3 +16,4 @@ Requests==2.32.3
 SQLAlchemy==2.0.34
 streamlit==1.38.0
 schedule==1.2.2
+python-dateutil==2.9.0.post0

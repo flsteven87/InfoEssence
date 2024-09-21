@@ -15,9 +15,13 @@ from pydantic import BaseModel
 import unicodedata
 from datetime import datetime
 from typing import List, Dict
+import time
+from pydantic import ValidationError
+
 class InstagramPostContent(BaseModel):
     ig_title: str
     ig_caption: str
+
 class InstagramPostGenerator:
     def __init__(self):
         load_dotenv()
@@ -30,10 +34,12 @@ class InstagramPostGenerator:
         self.title_font_size = int(56)
         self.title_font = ImageFont.truetype(self.title_font_path, self.title_font_size)
         self.title_width_for_draw = 1024 - 40 - 40 - 30
+
     def load_prompt_template(self):
         prompt_path = os.path.join(os.path.dirname(__file__), 'prompts', 'instagram_post_prompt.txt')
         with open(prompt_path, 'r', encoding='utf-8') as f:
             return f.read().strip()
+
     def process_ig_title_fullwidth(self, text):
         return ''.join([
             char if char.isdigit() or char in ['%', '.'] else
@@ -42,6 +48,7 @@ class InstagramPostGenerator:
             })
             for char in text
         ])
+
     def generate_instagram_post(self, news: News):
         for attempt in range(self.max_regeneration_attempts):
             result = self._generate_post_content(news)
@@ -61,39 +68,56 @@ class InstagramPostGenerator:
             "ig_caption": result.ig_caption,
             "news": news
         }
+
     def _generate_post_content(self, news: News):
-        content = ""
-        if news.md_file:
-            content = news.md_file.data.decode('utf-8')
-        user_prompt = f"""
-        title: {news.title}
-        summary: {news.summary}
-        content: {content}
-        ai_title: {news.ai_title}
-        ai_summary: {news.ai_summary}
-        """
-        response = self.client.chat.completions.create(
-            model="gpt-4o-2024-08-06",
-            messages=[
-                {"role": "system", "content": self.system_prompt},
-                {"role": "user", "content": user_prompt}
-            ],
-            tools=[{
-                "type": "function",
-                "function": {
-                    "name": "output_instagram_post",
-                    "description": "Generate an Instagram title and caption for the news.",
-                    "parameters": InstagramPostContent.model_json_schema()
-                }
-            }]
-        )
-        tool_call = response.choices[0].message.tool_calls[0]
-        if tool_call.function.name == "output_instagram_post":
-            return InstagramPostContent.model_validate_json(tool_call.function.arguments)
-        else:
-            raise ValueError("未收到預期的工具調用回應")
+        max_retries = 3
+        retry_delay = 2  # 秒
+
+        for attempt in range(max_retries):
+            try:
+                content = ""
+                if news.md_file:
+                    content = news.md_file.data.decode('utf-8')
+                user_prompt = f"""
+                title: {news.title}
+                summary: {news.summary}
+                content: {content}
+                ai_title: {news.ai_title}
+                ai_summary: {news.ai_summary}
+                """
+                response = self.client.chat.completions.create(
+                    model="gpt-4o-2024-08-06",
+                    messages=[
+                        {"role": "system", "content": self.system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    tools=[{
+                        "type": "function",
+                        "function": {
+                            "name": "output_instagram_post",
+                            "description": "Generate an Instagram title and caption for the news.",
+                            "parameters": InstagramPostContent.model_json_schema()
+                        }
+                    }]
+                )
+                tool_call = response.choices[0].message.tool_calls[0]
+                if tool_call.function.name == "output_instagram_post":
+                    return InstagramPostContent.model_validate_json(tool_call.function.arguments)
+                else:
+                    raise ValueError("未收到預期的工具調用回應")
+            except (ValidationError, ValueError) as e:
+                if attempt < max_retries - 1:
+                    logging.warning(f"生成 Instagram 貼文內容失敗（嘗試 {attempt + 1}/{max_retries}）：{str(e)}。正在重試...")
+                    time.sleep(retry_delay)
+                else:
+                    logging.error(f"生成 Instagram 貼文內容失敗，已達到最大重試次數：{str(e)}")
+                    raise
+
+        raise RuntimeError("無法生成有效的 Instagram 貼文內容")
+
     def _is_title_valid(self, title):
         return get_text_width(self.title_font, title) <= self.title_width_for_draw * 2
+
     def generate_instagram_posts(self):
         with self.SessionLocal() as db:
             chosen_news = get_latest_chosen_news(db)
@@ -110,6 +134,7 @@ class InstagramPostGenerator:
                     logging.warning(f"找不到 ID 為 {news_id} 的新聞")
         self.save_instagram_posts(ig_posts, chosen_news.id)
         return ig_posts
+
     def save_instagram_posts(self, ig_posts: List[Dict], chosen_news_id: int):
         with self.SessionLocal() as db:
             for post in ig_posts:
@@ -123,6 +148,7 @@ class InstagramPostGenerator:
             
             db.commit()
         logging.info(f"已保存 {len(ig_posts)} 條 Instagram 貼文")
+
 def main():
     try:
         generator = InstagramPostGenerator()
@@ -139,5 +165,6 @@ def main():
     except Exception as e:
         print(f"發生未預期的錯誤: {e}")
         logging.exception("發生未預期的錯誤")
+
 if __name__ == "__main__":
     main()

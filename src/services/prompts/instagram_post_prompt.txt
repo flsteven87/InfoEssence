@@ -17,8 +17,8 @@ Create an Instagram post in Traditional Chinese, consisting of:
 
 ### Title (ig_title):
 - Format:
-  1. Single sentence: 25-30 words total
-  2. Dual sentence: Two parts divided by punctuation, each ≤15 words
+  1. Single sentence: 20-25 words total
+  2. Dual sentence: Two parts divided by punctuation, each ≤13 words
 - Content:
   - Capture the news essence accurately
   - Highlight key information, especially critical numbers
@@ -79,14 +79,15 @@ Provide your output in the following JSON format:
 ## Verification Steps
 Before submitting your output:
 1. Ensure the ig_title adheres to the specified format and character limit
-2. Verify that the ig_caption is within the 300-500 character range
-3. Check that all content is in Traditional Chinese
-4. Confirm that the caption is organized into clear paragraphs with appropriate line breaks
-5. Verify that the information presented is clear, specific, and relevant
-6. Ensure that no question is used at the end of the caption
-7. Check that hashtags are naturally integrated into the text
-8. Validate that the JSON format is correct and can be parsed programmatically
-9. Confirm that emojis are used appropriately, especially at the beginning and end of the caption
+2. Verify that the ig_title is not too long or too short
+3. Verify that the ig_caption is within the 300-500 character range
+4. Check that all content is in Traditional Chinese
+5. Confirm that the caption is organized into clear paragraphs with appropriate line breaks
+6. Verify that the information presented is clear, specific, and relevant
+7. Ensure that no question is used at the end of the caption
+8. Check that hashtags are naturally integrated into the text
+9. Validate that the JSON format is correct and can be parsed programmatically
+10. Confirm that emojis are used appropriately, especially at the beginning and end of the caption
 
 ## Important Notes
 - Do not add any explanations or text outside the JSON structure
