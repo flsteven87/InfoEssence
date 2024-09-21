@@ -27,7 +27,7 @@ def truncate_tables():
 
 def main():
     parser = argparse.ArgumentParser(description="數據庫管理工具")
-    parser.add_argument('action', choices=['init', 'truncate'], help="選擇操作：init（初始化數據庫）或 truncate（清空表格）")
+    parser.add_argument('action', choices=['init', 'truncate', 'create'], help="選擇操作：init（初始化數據庫）或 truncate（清空表格）或 create（創建表格）")
     
     args = parser.parse_args()
     
