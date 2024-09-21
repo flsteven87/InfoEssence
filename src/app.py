@@ -57,6 +57,9 @@ def main():
     start_date = st.sidebar.date_input("開始日期")
     end_date = st.sidebar.date_input("結束日期")
 
+    # 新增：篩選有圖片的帖子（Instagram 帖子）
+    only_instagram = st.sidebar.checkbox("只顯示有圖片的帖子")
+
     # 修改查詢以包含所需的所有信息
     query = """
     SELECT n.id, n.title, n.ai_title, n.ai_summary, n.link, 
@@ -77,6 +80,10 @@ def main():
     if selected_media:
         query += " AND m.name IN %s"
         params.append(tuple(selected_media))
+
+    # 新增：如果選擇只顯示 Instagram 帖子，添加相應的條件
+    if only_instagram:
+        query += " AND (ip.integrated_image_id IS NOT NULL OR n.png_file_id IS NOT NULL)"
 
     query += " ORDER BY n.published_at DESC"
 
