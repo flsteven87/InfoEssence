@@ -129,11 +129,10 @@ class InstagramStoryPoster:
 
             # 創建新的限時動態
             new_story = Story(
-                title=f"每日熱門：{recent_news.news.title}",
+                title=f"{recent_news.news.title}",
                 content=recent_news.news.ai_summary[:200] if recent_news.news.ai_summary else "",  # 限制內容長度
                 png_file_id=recent_news.news.png_file_id,
                 published_id=recent_news.id,
-                expires_at=func.now() + timedelta(hours=24)  # 設置 24 小時後過期
             )
             session.add(new_story)
             session.commit()
