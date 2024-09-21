@@ -7,7 +7,6 @@ from sqlalchemy.orm import sessionmaker, Session
 import requests
 
 from src.config.settings import OPENAI_API_KEY, DATABASE_URL
-from src.utils.file_utils import get_image_file_path, get_content_file_path
 from src.utils.database_utils import get_news_by_id, Session
 from src.database.models import News, File
 from src.database.operations import upsert_news_with_png
