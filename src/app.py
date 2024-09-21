@@ -136,17 +136,25 @@ def main():
             </div>
             """, unsafe_allow_html=True)
 
-            # 顯示 Markdown 內容（預設不展開）
+            # 提供 Markdown 文件下載
             if item['md_file_id']:
                 md_query = "SELECT data FROM files WHERE id = %s"
                 md_data = run_binary_query(md_query, (item['md_file_id'],))
                 if md_data and md_data['data']:
                     try:
                         md_content = bytes(md_data['data']).decode('utf-8')
-                        with st.expander("顯示完整內容"):
-                            st.markdown(md_content)
+                        md_filename = f"news_{item['id']}.md"
+                        st.download_button(
+                            label="下載完整內容 (Markdown)",
+                            data=md_content,
+                            file_name=md_filename,
+                            mime="text/markdown"
+                        )
                     except Exception as e:
-                        st.error(f"無法載入 Markdown 內容: {e}")
+                        st.error(f"無法準備 Markdown 文件下載: {e}")
+
+    # 移除了這裡的分隔線
+    # st.markdown("---")
 
 if __name__ == "__main__":
     main()
