@@ -35,7 +35,8 @@ def main():
         init_db()
     elif args.action == 'truncate':
         truncate_tables()
-    
+    elif args.action == 'create':
+        create_tables()
     logging.info(f"{args.action} 操作完成")
 
 if __name__ == "__main__":
