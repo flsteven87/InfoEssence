@@ -68,8 +68,8 @@ def main():
     start_date = st.sidebar.date_input("開始日期")
     end_date = st.sidebar.date_input("結束日期")
 
-    # 新增：篩選有圖片的帖子（Instagram 帖子）
-    only_instagram = st.sidebar.checkbox("顯示有圖片的帖子")
+    # 新增：篩選有圖片的帖子（Instagram 帖子），預設為打勾
+    only_instagram = st.sidebar.checkbox("僅顯示有圖片的新聞", value=True)
 
     # 修改查詢以包含所需的所有信息
     query = """

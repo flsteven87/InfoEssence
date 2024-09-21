@@ -13,6 +13,10 @@ def init_db():
     Base.metadata.create_all(engine)
     logging.info("數據庫已初始化")
 
+def create_tables():
+    Base.metadata.create_all(engine)
+    logging.info("數據庫已創建")
+
 def truncate_tables():
     with SessionLocal() as db:
         tables = ['news', 'feeds', 'media', 'files']

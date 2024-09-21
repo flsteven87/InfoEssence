@@ -98,4 +98,18 @@ class Published(Base):
     news = relationship("News", back_populates="published")
     instagram_post = relationship("InstagramPost", back_populates="published")
 
+    story = relationship("Story", back_populates="published", uselist=False)
+
+class Story(Base):
+    __tablename__ = 'stories'
+
+    id = Column(Integer, primary_key=True)
+    title = Column(String(255), nullable=False)
+    content = Column(Text, nullable=False)
+    png_file_id = Column(Integer, ForeignKey('files.id'))
+    published_id = Column(Integer, ForeignKey('published.id'))
+
+    png_file = relationship("File", foreign_keys=[png_file_id])
+    published = relationship("Published", back_populates="story")
+
 Feed.news = relationship("News", back_populates="feed")

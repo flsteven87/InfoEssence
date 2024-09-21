@@ -34,7 +34,6 @@ Create an Instagram post in Traditional Chinese, consisting of:
   - If the news is part of an ongoing story or trend, briefly mention how it fits into the larger picture
   - Only mention Taiwan or draw connections to Taiwan when the news has a direct and significant impact on the country or its citizens
   - For news not directly related to Taiwan, focus on presenting the global context and potential wider implications
-  - Conclude with a strong, summarizing statement that reinforces the importance of the news (avoid ending with a question)
 - Style:
   - Use simple, clear language that is accessible to a general audience while maintaining depth and accuracy
   - Maintain a professional and objective tone throughout the caption
