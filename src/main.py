@@ -1,8 +1,8 @@
 import argparse
 import logging
 import os
-from datetime import datetime
-from dateutil.parser import parse as parse_date
+from datetime import datetime, timedelta
+from dateutil.parser import parse as dateutil_parse
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -24,6 +24,14 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 # 禁用 httpx 的日誌記錄
 logging.getLogger("httpx").setLevel(logging.WARNING)
+
+def parse_date(date_string):
+    parsed_date = dateutil_parse(date_string)
+    if parsed_date.tzinfo is None:
+        # 如果原始日期沒有時區信息，假設它是 UTC
+        parsed_date = parsed_date.replace(tzinfo=datetime.timezone.utc)
+    # 將時間轉換為 UTC+8
+    return parsed_date.astimezone(datetime.timezone(timedelta(hours=8)))
 
 class InfoEssence:
     def __init__(self):

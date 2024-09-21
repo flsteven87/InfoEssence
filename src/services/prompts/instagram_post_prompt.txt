@@ -23,7 +23,6 @@ Create an Instagram post in Traditional Chinese, consisting of:
   - Capture the news essence accurately
   - Highlight key information, especially critical numbers
   - Use clear, engaging language
-  - Emphasize relevance to Taiwanese readers when applicable
   - Be concise and impactful
   - Use attractive language to increase click-through rate
   - Ensure accuracy, avoid exaggeration or misleading content
@@ -37,6 +36,7 @@ Create an Instagram post in Traditional Chinese, consisting of:
 - Content:
   - Begin with a strong, attention-grabbing opening sentence that encapsulates the core of the news
   - Present key information concisely and clearly, focusing on the "5W1H" (Who, What, When, Where, Why, How) of the news story
+  - Provide quantitative data and critical numbers if they are significant
   - Provide essential context and background information to help readers understand the significance of the news
   - Include specific details, facts, figures, and quotes from relevant sources to support the main points
   - Explain the potential implications or consequences of the news, both on a global scale and, when directly relevant, for Taiwan
@@ -57,7 +57,7 @@ Create an Instagram post in Traditional Chinese, consisting of:
   - Ensure the overall layout is visually appealing and easy to read on mobile devices
 - Engagement:
   - End with a thoughtful question or call-to-action that encourages reader engagement, without being sensationalist
-  - Include 2-3 relevant hashtags, integrated naturally into the text, to improve discoverability
+  - Include 3-5 relevant hashtags, considering the public interest and cultural context, integrated naturally into the text, to improve discoverability
 - Fact-checking:
   - Double-check all facts, figures, and quotes for accuracy before finalizing the caption
   - Ensure that any claims or statements are properly attributed to their sources
