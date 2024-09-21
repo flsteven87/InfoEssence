@@ -64,10 +64,29 @@ class InstagramStoryPoster:
             print("非生產環境，跳過實際的限時動態媒體物件創建")
             return "mock_story_media_id"
 
-    def publish_story(self, media_id: str) -> None:
+    def create_story_container(self, image_url: str) -> str:
+        url = f'{self.BASE_URL}/{self.user_id}/media'
+        payload = {
+            'image_url': image_url,
+            'media_type': 'STORIES',
+            'access_token': self.access_token
+        }
+
+        if self.env == 'production':
+            response = requests.post(url, data=payload)
+            if response.status_code == 200:
+                return response.json()['id']
+            else:
+                print(f"創建限時動態容器時發生錯誤: {response.json()}")
+                raise Exception(f"創建限時動態容器失敗: {response.text}")
+        else:
+            print("非生產環境，跳過實際的限時動態容器創建")
+            return "mock_story_container_id"
+
+    def publish_story(self, container_id: str) -> None:
         url = f'{self.BASE_URL}/{self.user_id}/media_publish'
         payload = {
-            'creation_id': media_id,
+            'creation_id': container_id,
             'access_token': self.access_token
         }
         
@@ -96,13 +115,13 @@ class InstagramStoryPoster:
 
             image_url = self.upload_image_to_imgur(image_data)
             
-            media_id = self.create_story_media_object(image_url)
+            container_id = self.create_story_container(image_url)
             
-            if media_id:
+            if container_id:
                 time.sleep(5)  # 等待幾秒鐘以確保處理完成
-                self.publish_story(media_id)
+                self.publish_story(container_id)
                                 
-                return media_id
+                return container_id
         except Exception as e:
             print(f"發布限時動態時發生錯誤: {e}")
             raise
