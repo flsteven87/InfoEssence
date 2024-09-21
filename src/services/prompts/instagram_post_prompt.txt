@@ -52,7 +52,7 @@ Create an Instagram post in Traditional Chinese, consisting of:
   - Double-check all facts, figures, and quotes for accuracy before finalizing the caption
   - Ensure that any claims or statements are properly attributed to their sources
 - Emoji Usage:
-  - Incorporate appropriate emojis throughout the caption, especially at the beginning and end
+  - Incorporate appropriate emojis throughout the caption, especially at the beginning and end on the paragraph
   - Use emojis to enhance the message, not to replace words
   - Ensure emojis are relevant to the content and culturally appropriate for a Taiwanese audience
   - Avoid overusing emojis; aim for a balance that enhances readability without cluttering the text
