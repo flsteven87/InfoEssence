@@ -3,6 +3,7 @@ import logging
 import os
 from datetime import datetime, timedelta, timezone
 from dateutil.parser import parse as dateutil_parse
+import pytz
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -32,6 +33,16 @@ def parse_date(date_string):
         parsed_date = parsed_date.replace(tzinfo=timezone.utc)
     # 將時間轉換為 UTC+8
     return parsed_date.astimezone(timezone(timedelta(hours=8)))
+
+def is_posting_time():
+    # 明確指定台灣時區
+    taiwan_tz = pytz.timezone('Asia/Taipei')
+    # 獲取當前的 UTC 時間
+    utc_now = datetime.now(pytz.utc)
+    # 轉換為台灣時間
+    taiwan_now = utc_now.astimezone(taiwan_tz)
+    # 檢查是否在凌晨 2:00 到 5:59 之間
+    return not (2 <= taiwan_now.hour < 6)
 
 class InfoEssence:
     def __init__(self):
@@ -131,8 +142,11 @@ def run_complete_process():
     info_essence = InfoEssence()
     info_essence.update_media_and_feeds()
     info_essence.fetch_and_store_news()
-    info_essence.choose_and_generate_post(15)
-    info_essence.instagram_poster.auto_post()
+    if is_posting_time():
+        info_essence.choose_and_generate_post(10)
+        info_essence.instagram_poster.auto_post()
+    else:
+        logging.info("現在是台灣時間 2:00 到 5:59，跳過發布貼文")
 
 def main():
     parser = argparse.ArgumentParser(description="InfoEssence: RSS Feed 處理器")
