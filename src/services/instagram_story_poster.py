@@ -10,6 +10,7 @@ import argparse
 from dotenv import load_dotenv
 import tempfile
 from datetime import timedelta
+import json
 
 class InstagramStoryPoster:
     BASE_URL = "https://graph.facebook.com/v20.0"
@@ -58,18 +59,22 @@ class InstagramStoryPoster:
             if response.status_code == 200:
                 return response.json()['id']
             else:
-                print(f"創建限時動態媒體物件時發生錯誤: {response.json()}")
+                print(f"創建限時動態媒體物件��發生錯誤: {response.json()}")
                 raise Exception(f"創建限時動態媒體物件失敗: {response.text}")
         else:
             print("非生產環境，跳過實際的限時動態媒體物件創建")
             return "mock_story_media_id"
 
-    def create_story_container(self, image_url: str) -> str:
+    def create_story_container(self, image_url: str, link: str) -> str:
         url = f'{self.BASE_URL}/{self.user_id}/media'
         payload = {
             'image_url': image_url,
             'media_type': 'STORIES',
-            'access_token': self.access_token
+            'access_token': self.access_token,
+            'story_media_link_data': json.dumps({
+                'link_type': 'WEB',
+                'url': link
+            })
         }
 
         if self.env == 'production':
@@ -107,15 +112,24 @@ class InstagramStoryPoster:
                 if not story:
                     raise ValueError(f"找不到 ID 為 {story_id} 的限時動態")
                 
-                file = session.query(File).filter(File.id == story.png_file_id).first()
-                if not file:
-                    raise ValueError(f"找不到限時動態 ID {story_id} 的圖片")
+                published = story.published
+                if not published:
+                    raise ValueError(f"限時動態 ID {story_id} 沒有關聯的已發布記錄")
                 
-                image_data = file.data
+                instagram_post = published.instagram_post
+                if not instagram_post:
+                    raise ValueError(f"已發布記錄 ID {published.id} 沒有關聯的 Instagram 貼文")
+                
+                integrated_image = instagram_post.integrated_image
+                if not integrated_image:
+                    raise ValueError(f"Instagram 貼文 ID {instagram_post.id} 沒有關聯的整合圖片")
+                
+                image_data = integrated_image.data
+                post_link = f"https://www.instagram.com/p/{instagram_post.id}/"  # 假設的 Instagram 貼文連結格式
 
             image_url = self.upload_image_to_imgur(image_data)
             
-            container_id = self.create_story_container(image_url)
+            container_id = self.create_story_container(image_url, post_link)
             
             if container_id:
                 time.sleep(5)  # 等待幾秒鐘以確保處理完成
@@ -158,7 +172,7 @@ class InstagramStoryPoster:
             session.commit()
 
             try:
-                media_id = self.post_story(new_story.id)
+                media_id = self.post_story(new_story.id, recent_news.news.link)
                 print(f"成功發布限時動態。媒體 ID: {media_id}")
             except Exception as e:
                 print(f"發布限時動態時發生錯誤: {e}")

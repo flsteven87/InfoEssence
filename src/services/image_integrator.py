@@ -8,6 +8,8 @@ from src.database.operations import upsert_file, upsert_ig_post_with_png
 from src.utils.file_utils import get_text_width
 import io
 import hashlib
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 class ImageIntegrator:
     def __init__(self):
@@ -43,6 +45,8 @@ class ImageIntegrator:
         self.published_time_font = ImageFont.truetype(self.brand_mark_font_path, self.published_time_font_size)
         self.published_time_right_margin = 28
         self.published_time_bottom_margin = 30
+
+        self.is_production = os.getenv('ENV') == 'production'
 
     def get_latest_chosen_news(self, session: Session):
         return session.query(ChosenNews).order_by(desc(ChosenNews.timestamp)).first()
@@ -94,7 +98,8 @@ class ImageIntegrator:
             for post in instagram_posts:
                 news = session.query(News).filter(News.id == post.news_id).first()
                 if news:
-                    integrated_image = self.integrate_image(post.news_id, post.ig_title, news.published_at.strftime('%Y.%m.%d %H:%M GMT+8'))
+                    taipei_time = self.convert_to_taipei_time(news.published_at)
+                    integrated_image = self.integrate_image(post.news_id, post.ig_title, taipei_time.strftime('%Y.%m.%d %H:%M GMT+8'))
                     
                     # 使用新的 upsert_ig_post_with_png 函數
                     post_id = upsert_ig_post_with_png(session, post.id, integrated_image)
@@ -213,6 +218,12 @@ class ImageIntegrator:
     def draw_gradient_square(self):
         # 保持原有的實現
         pass
+
+    def convert_to_taipei_time(self, utc_time):
+        if self.is_production:
+            taipei_time = utc_time.replace(tzinfo=ZoneInfo('UTC')).astimezone(ZoneInfo('Asia/Taipei'))
+            return taipei_time
+        return utc_time
 
 def main():
     integrator = ImageIntegrator()
