@@ -172,7 +172,7 @@ class InstagramStoryPoster:
             session.commit()
 
             try:
-                media_id = self.post_story(new_story.id, recent_news.news.link)
+                media_id = self.post_story(new_story.id)  # 移除了 recent_news.news.link 參數
                 print(f"成功發布限時動態。媒體 ID: {media_id}")
             except Exception as e:
                 print(f"發布限時動態時發生錯誤: {e}")
