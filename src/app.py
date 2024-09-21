@@ -42,7 +42,7 @@ def run_query(query, params=None):
         pool.putconn(conn)
     return result
 
-# 修改二進制數據查詢函數
+# ���改二進制數據查詢函數
 def run_binary_query(query, params=None):
     with pool.getconn() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
@@ -76,9 +76,23 @@ def main():
     # 新增：篩選有圖片的帖子（Instagram 帖子），預設為打勾
     only_instagram = st.sidebar.checkbox("僅顯示有圖片的新聞", value=True)
 
+    # 獲取所有可用的 chosen_news.id
+    chosen_news_query = "SELECT id, timestamp FROM chosen_news ORDER BY timestamp DESC"
+    chosen_news_options = run_query(chosen_news_query)
+    
+    # 創建選項列表，包含時間戳
+    chosen_news_list = [f"{row['id']} - {row['timestamp']}" for row in chosen_news_options]
+    chosen_news_list.insert(0, "")  # 添加一個空選項
+
+    # 新增：下拉式選單選擇 chosen_news.id
+    selected_chosen_news = st.sidebar.selectbox("選擇 Chosen News（可選）", chosen_news_list)
+    
+    # 從選擇中提取 ID
+    selected_chosen_news_id = selected_chosen_news.split(" - ")[0] if selected_chosen_news else None
+
     # 修改查詢以包含所需的所有信息
     query = """
-    SELECT n.id, n.title, n.ai_title, n.ai_summary, n.link, 
+    SELECT DISTINCT n.id, n.title, n.ai_title, n.ai_summary, n.link, 
            m.name as media_name, f.name as feed_name, n.published_at,
            ip.ig_title, ip.ig_caption, ip.integrated_image_id,
            n.md_file_id, n.png_file_id,
@@ -88,6 +102,7 @@ def main():
     JOIN feeds f ON n.feed_id = f.id
     LEFT JOIN instagram_posts ip ON n.id = ip.news_id
     LEFT JOIN published p ON n.id = p.news_id
+    LEFT JOIN chosen_news cn ON n.id = ANY(cn.news_ids)
     WHERE n.published_at AT TIME ZONE 'UTC' >= %s 
       AND n.published_at AT TIME ZONE 'UTC' < %s
     """
@@ -100,7 +115,12 @@ def main():
 
     # 新增：如果選擇只顯示 Instagram 帖子，添加相應的條件
     if only_instagram:
-        query += " AND (ip.integrated_image_id IS NOT NULL OR n.png_file_id IS NOT NULL)"
+        query += " AND ip.id IS NOT NULL"
+
+    # 新增：如果選擇了特定的 chosen_news.id，添加相應的條件
+    if selected_chosen_news_id:
+        query += " AND cn.id = %s"
+        params.append(selected_chosen_news_id)
 
     query += " ORDER BY n.published_at DESC"
 

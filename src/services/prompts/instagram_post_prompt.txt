@@ -16,7 +16,17 @@ Create an Instagram post in Traditional Chinese, consisting of:
 ## Guidelines
 
 ### Title (ig_title):
-[No changes to this section]
+- Format:
+  1. Single sentence: 25-30 words total
+  2. Dual sentence: Two parts divided by punctuation, each ≤15 words
+- Content:
+  - Capture the news essence accurately
+  - Highlight key information, especially critical numbers
+  - Use clear, engaging language
+  - Emphasize relevance to Taiwanese readers when applicable
+  - Be concise and impactful
+  - Use attractive language to increase click-through rate
+  - Ensure accuracy, avoid exaggeration or misleading content
 
 ### Caption (ig_caption):
 - Length: 500-800 characters (including spaces)
