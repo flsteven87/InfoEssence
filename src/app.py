@@ -10,6 +10,17 @@ import html
 from io import BytesIO
 from PIL import Image
 
+# 獲取當前腳本的目錄
+current_dir = os.path.dirname(os.path.abspath(__file__))
+# 構建 logo 文件的路徑
+logo_path = os.path.join(current_dir, 'assets', 'globalnews_logo.jpg')
+
+# 設置頁面配置
+st.set_page_config(
+    page_title="GlobalNews for Taiwan",
+    page_icon=logo_path
+)
+
 # 設置日誌
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -58,7 +69,7 @@ def main():
     end_date = st.sidebar.date_input("結束日期")
 
     # 新增：篩選有圖片的帖子（Instagram 帖子）
-    only_instagram = st.sidebar.checkbox("只顯示有圖片的帖子")
+    only_instagram = st.sidebar.checkbox("顯示有圖片的帖子")
 
     # 修改查詢以包含所需的所有信息
     query = """
@@ -74,7 +85,7 @@ def main():
     LEFT JOIN published p ON n.id = p.news_id
     WHERE n.published_at >= %s AND n.published_at < %s
     """
-    # 將結束日期加天，以包含整個結束日期
+    # 結束日期加天，以包含整個結束日期
     params = [start_date, end_date + timedelta(days=1)]
 
     if selected_media:
@@ -99,8 +110,8 @@ def main():
         display_title = item['ig_title'] if item['ig_title'] else item['ai_title']
         display_summary = item['ig_caption'] if item['ig_caption'] else item['ai_summary']
         
-        # 添加特殊符號
-        title_display = f"{item['id']} - {display_title} - {published_time}"
+        # 修改這裡，移除 item['id']
+        title_display = f"{display_title} - {published_time}"
         if item['is_published']:
             title_display += " 🚀"  # 已發布的符號
         if item['ig_title']:

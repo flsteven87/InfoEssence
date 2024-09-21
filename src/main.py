@@ -17,8 +17,6 @@ from src.services.news_chooser import NewsChooser
 from src.services.instagram_post_generator import InstagramPostGenerator
 from src.services.image_generator import ImageGenerator
 from src.services.image_integrator import ImageIntegrator
-from src.utils.file_utils import get_content_file_path, get_image_file_path
-from src.utils.database_utils import get_news_by_id
 from src.services.instagram_poster_official import InstagramPoster
 
 # 設置日誌記錄
