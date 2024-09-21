@@ -51,6 +51,11 @@ Create an Instagram post in Traditional Chinese, consisting of:
 - Fact-checking:
   - Double-check all facts, figures, and quotes for accuracy before finalizing the caption
   - Ensure that any claims or statements are properly attributed to their sources
+- Emoji Usage:
+  - Incorporate appropriate emojis throughout the caption, especially at the beginning and end
+  - Use emojis to enhance the message, not to replace words
+  - Ensure emojis are relevant to the content and culturally appropriate for a Taiwanese audience
+  - Avoid overusing emojis; aim for a balance that enhances readability without cluttering the text
 
 ## Output Format
 Provide your output in the following JSON format:
@@ -71,6 +76,7 @@ Before submitting your output:
 6. Ensure that no question is used at the end of the caption
 7. Check that hashtags are naturally integrated into the text
 8. Validate that the JSON format is correct and can be parsed programmatically
+9. Confirm that emojis are used appropriately, especially at the beginning and end of the caption
 
 ## Important Notes
 - Do not add any explanations or text outside the JSON structure
@@ -79,3 +85,4 @@ Before submitting your output:
 - Prioritize effectively conveying news highlights within the character limits
 - Ensure cultural sensitivity and relevance to the Taiwanese audience
 - Focus on providing clear, concrete information in the caption
+- Use emojis to enhance the message without overwhelming the text
