@@ -40,7 +40,6 @@ Create an Instagram post in Traditional Chinese, consisting of:
   - Provide essential context and background information to help readers understand the significance of the news
   - Include specific details, facts, figures, and quotes from relevant sources to support the main points
   - Explain the potential implications or consequences of the news, both on a global scale and, when directly relevant, for Taiwan
-  - Address why this news matters to the reader and its broader significance
   - If the news is part of an ongoing story or trend, briefly mention how it fits into the larger picture
   - Only mention Taiwan or draw connections to Taiwan when the news has a direct and significant impact on the country or its citizens
   - For news not directly related to Taiwan, focus on presenting the global context and potential wider implications
