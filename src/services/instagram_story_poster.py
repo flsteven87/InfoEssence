@@ -25,8 +25,8 @@ class InstagramStoryPoster:
         self.engine = create_engine(DATABASE_URL)
         self.SessionLocal = sessionmaker(bind=self.engine)
         self.imgur_client = ImgurClient(self.imgur_client_id, self.imgur_client_secret)
-        # self.env = os.getenv("ENV", "development")
-        self.env = "production"
+        self.env = os.getenv("ENV", "development")
+        # self.env = "production"
 
     def upload_image_to_imgur(self, image_data: bytes) -> str:
         try:
@@ -49,8 +49,8 @@ class InstagramStoryPoster:
         url = f'{self.BASE_URL}/{self.user_id}/media'
         payload = {
             'image_url': image_url,
-            'media_type': 'STORIES',
-            'access_token': self.access_token
+            'access_token': self.access_token,
+            'is_stories': True
         }
 
         if self.env == 'production':
@@ -65,7 +65,7 @@ class InstagramStoryPoster:
             return "mock_story_media_id"
 
     def publish_story(self, media_id: str) -> None:
-        url = f'{self.BASE_URL}/{self.user_id}/stories'
+        url = f'{self.BASE_URL}/{self.user_id}/media_publish'
         payload = {
             'creation_id': media_id,
             'access_token': self.access_token
