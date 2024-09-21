@@ -31,6 +31,7 @@ class InstagramPoster:
         self.imgur_client = ImgurClient(self.imgur_client_id, self.imgur_client_secret)
         openai.api_key = os.getenv("OPENAI_API_KEY")
         self.prompt_template = self.load_prompt_template()
+        self.env = os.getenv("ENV", "development")  # 添加這行來獲取環境變量
 
     def load_prompt_template(self):
         prompt_path = os.path.join(os.path.dirname(__file__), 'prompts', 'choose_instagram_post_prompt.txt')
@@ -62,6 +63,8 @@ class InstagramPoster:
 
         published_news_ids = self.get_published_news_ids()
         unpublished_posts = [post for post in instagram_posts if post.news_id not in published_news_ids]
+
+        # published_instagram_post_ids = self.get_published_instagram_post_ids()
 
         if not unpublished_posts:
             print("所有新聞的貼文都已發布")
@@ -159,13 +162,17 @@ class InstagramPoster:
             'caption': caption,
             'access_token': self.access_token
         }
-        
-        response = requests.post(url, data=payload)
-        if response.status_code == 200:
-            return response.json()['id']
+
+        if self.env == 'production':
+            response = requests.post(url, data=payload)
+            if response.status_code == 200:
+                return response.json()['id']
+            else:
+                print(f"創建媒體物件時發生錯誤: {response.json()}")
+                raise Exception(f"創建媒體物件失敗: {response.text}")
         else:
-            print(f"創建媒體物件時發生錯誤: {response.json()}")
-            raise Exception(f"創建媒體物件失敗: {response.text}")
+            print("非生產環境，跳過實際的媒體物件創建")
+            return "mock_media_id"
 
     def publish_media(self, media_id: str) -> None:
         url = f'{self.BASE_URL}/{self.user_id}/media_publish'
@@ -174,12 +181,15 @@ class InstagramPoster:
             'access_token': self.access_token
         }
         
-        response = requests.post(url, data=payload)
-        if response.status_code == 200:
-            print("媒體發布成功！")
+        if self.env == 'production':
+            response = requests.post(url, data=payload)
+            if response.status_code == 200:
+                print("媒體發布成功！")
+            else:
+                print(f"發布媒體時發生錯誤: {response.json()}")
+                raise Exception(f"發布媒體失敗: {response.text}")
         else:
-            print(f"發布媒體時發生錯誤: {response.json()}")
-            raise Exception(f"發布媒體失敗: {response.text}")
+            print("非生產環境，跳過實際的媒體發布")
 
     def post_instagram(self, post_id: int) -> str:
         try:

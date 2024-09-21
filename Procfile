@@ -1,1 +1,1 @@
-worker: python -m src.main
+web: streamlit run src/app.py --server.port $PORT

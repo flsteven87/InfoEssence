@@ -5,9 +5,10 @@ from config.settings import DATABASE_URL
 import logging
 from datetime import timedelta
 import os
-import pandas as pd
-from utils.file_utils import sanitize_filename
+import base64
 import html
+from io import BytesIO
+from PIL import Image
 
 # 設置日誌
 logging.basicConfig(level=logging.INFO)
@@ -20,90 +21,21 @@ def init_connection():
 
 conn = init_connection()
 
-# 查詢數據
+# 一般查詢函數
 @st.cache_data(ttl=600)
 def run_query(query, params=None):
-    global conn
-    try:
-        with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(query, params)
-            return cur.fetchall()
-    except psycopg2.Error as e:
-        logger.error(f"資料庫錯誤: {e}")
-        st.error("發生資料庫錯誤，正在嘗試重新連接...")
-        conn.rollback()  # 回滾交易
-        conn = init_connection()  # 重新建立連接
-        try:
-            with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute(query, params)
-                return cur.fetchall()
-        except psycopg2.Error as e:
-            logger.error(f"試後仍然發生錯誤: {e}")
-            st.error("無法連接到資料庫，請稍後再試。")
-            return []
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(query, params)
+        return [dict(row) for row in cur.fetchall()]
 
-# 新增函數：獲取最新的 CSV 檔案
-def get_latest_csv():
-    csv_dir = "chosen_news/"
-    csv_files = [f for f in os.listdir(csv_dir) if f.endswith('.csv')]
-    if not csv_files:
-        return None
-    latest_csv = max(csv_files, key=lambda x: os.path.getctime(os.path.join(csv_dir, x)))
-    return os.path.join(csv_dir, latest_csv)
-
-# 修改函數：讀取 CSV 檔案並返回重要新聞的字典
-@st.cache_data(ttl=600)
-def get_important_news():
-    csv_path = get_latest_csv()
-    if not csv_path:
-        logger.warning("未找到 CSV 檔案")
-        return {}, None
-    try:
-        df = pd.read_csv(csv_path)
-        if 'id' not in df.columns:
-            logger.error(f"CSV 檔案 {csv_path} 中缺少必要欄位")
-            st.warning("無法載入重要新聞列表，請檢查 CSV 檔案格式")
-            return {}, os.path.basename(csv_path)
-        # 將 id 轉換為字符串
-        df['id'] = df['id'].astype(str)
-        important_news = df.set_index('id').to_dict(orient='index')
-        logger.info(f"已載入 {len(important_news)} 條重要新聞")
-        return important_news, os.path.basename(csv_path)
-    except Exception as e:
-        logger.error(f"讀取 CSV 檔案時發生錯誤: {e}")
-        st.error("讀取重要新聞列表時發生錯誤")
-        return {}, os.path.basename(csv_path)
-
-# 新增函數：獲取最新的 Instagram CSV 檔案
-def get_latest_instagram_csv():
-    csv_dir = "./instagram_posts/"
-    csv_files = [f for f in os.listdir(csv_dir) if f.endswith('.csv')]
-    if not csv_files:
-        return None
-    latest_csv = max(csv_files, key=lambda x: os.path.getctime(os.path.join(csv_dir, x)))
-    return os.path.join(csv_dir, latest_csv)
-
-# 新增函數：讀取 Instagram CSV 檔案並返回映射
-@st.cache_data(ttl=600)
-def get_instagram_posts():
-    csv_path = get_latest_instagram_csv()
-    if not csv_path:
-        logger.warning("未找到 Instagram CSV 檔案")
-        return {}, None
-    try:
-        df = pd.read_csv(csv_path)
-        if 'id' not in df.columns or 'ig_title' not in df.columns or 'ig_caption' not in df.columns:
-            logger.error(f"Instagram CSV 檔案 {csv_path} 中缺少必要欄位")
-            st.warning("無法載入 Instagram 貼文列表，請檢查 CSV 檔案格式")
-            return {}, os.path.basename(csv_path)
-        df['id'] = df['id'].astype(str)
-        instagram_posts = df.set_index('id').to_dict(orient='index')
-        logger.info(f"已載入 {len(instagram_posts)} 條 Instagram 貼文")
-        return instagram_posts, os.path.basename(csv_path)
-    except Exception as e:
-        logger.error(f"讀取 Instagram CSV 檔案時發生錯誤: {e}")
-        st.error("讀取 Instagram 貼文列表時發生錯誤")
-        return {}, os.path.basename(csv_path)
+# 二進制數據查詢函數
+def run_binary_query(query, params=None):
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(query, params)
+        result = cur.fetchone()
+        if result:
+            return {k: v for k, v in result.items()}
+    return None
 
 # 主應用
 def main():
@@ -125,86 +57,60 @@ def main():
     start_date = st.sidebar.date_input("開始日期")
     end_date = st.sidebar.date_input("結束日期")
 
-    # 構建查詢
+    # 修改查詢以包含所需的所有信息
     query = """
-    SELECT news.id, news.title, news.ai_title, news.ai_summary, news.link, 
-           media.name as media_name, feeds.name as feed_name, news.published_at
-    FROM news
-    JOIN media ON news.media_id = media.id
-    JOIN feeds ON news.feed_id = feeds.id
-    WHERE news.published_at >= %s AND news.published_at < %s
+    SELECT n.id, n.title, n.ai_title, n.ai_summary, n.link, 
+           m.name as media_name, f.name as feed_name, n.published_at,
+           ip.ig_title, ip.ig_caption, ip.integrated_image_id,
+           n.md_file_id, n.png_file_id,
+           CASE WHEN p.id IS NOT NULL THEN true ELSE false END as is_published
+    FROM news n
+    JOIN media m ON n.media_id = m.id
+    JOIN feeds f ON n.feed_id = f.id
+    LEFT JOIN instagram_posts ip ON n.id = ip.news_id
+    LEFT JOIN published p ON n.id = p.news_id
+    WHERE n.published_at >= %s AND n.published_at < %s
     """
-    # 將結束日期加��天，以包含整個結束日期
+    # 將結束日期加天，以包含整個結束日期
     params = [start_date, end_date + timedelta(days=1)]
 
     if selected_media:
-        query += " AND media.name IN %s"
+        query += " AND m.name IN %s"
         params.append(tuple(selected_media))
 
-    query += " ORDER BY news.published_at DESC"
+    query += " ORDER BY n.published_at DESC"
 
     # 執行查詢
     news_items = run_query(query, params)
 
-    # 獲取重要新聞的字典和 CSV 檔案名稱
-    important_news, csv_filename = get_important_news()
-    
-    # 獲取 Instagram 貼文的字典和 CSV 檔案名稱
-    instagram_posts, instagram_csv_filename = get_instagram_posts()
-
-    # 顯示正在使用的 CSV 檔案名稱
-    if csv_filename:
-        st.sidebar.info(f"正在使用的重要新聞 CSV 檔案: {csv_filename}")
-    else:
-        st.sidebar.warning("未找到重要新聞 CSV 檔案")
-
-    if instagram_csv_filename:
-        st.sidebar.info(f"正在使用的 Instagram CSV 檔案: {instagram_csv_filename}")
-    else:
-        st.sidebar.warning("未找到 Instagram CSV 檔案")
-
-    if not important_news:
-        st.warning("未找到重要新聞，請確保 CSV 檔案存在且格式正確")
-
     # 顯示新聞
     for item in news_items:
-        item_id = str(item['id'])
-        is_important = item_id in important_news
-        has_instagram_post = item_id in instagram_posts
-        
         # 格式化發布時間
         published_time = item['published_at'].strftime('%Y-%m-%d %H:%M')
         
-        title_display = f"{item['id']} - {item['ai_title']} - {published_time}"
-        if is_important:
-            title_display += " 🔥"
-        if has_instagram_post:
-            title_display += " 📸"
+        # 決定顯示的標題和摘要
+        display_title = item['ig_title'] if item['ig_title'] else item['ai_title']
+        display_summary = item['ig_caption'] if item['ig_caption'] else item['ai_summary']
+        
+        # 添加特殊符號
+        title_display = f"{item['id']} - {display_title} - {published_time}"
+        if item['is_published']:
+            title_display += " 🚀"  # 已發布的符號
+        if item['ig_title']:
+            title_display += " 📸"  # Instagram 帖子的符號
 
         with st.expander(title_display):
-            # 如果是重要新聞，顯示圖片
-            if is_important:
-                image_dir = "./image/"
-                media_dir = sanitize_filename(item['media_name'])
-                feed_dir = sanitize_filename(item.get('feed_name', ''))
-                image_path = os.path.join(image_dir, media_dir, feed_dir)
-                image_files = [f for f in os.listdir(image_path) if f.startswith(f"{item['id']}_") and f.endswith("_integrated.png")]
-                if image_files:
-                    image_file = image_files[0]
-                    full_image_path = os.path.join(image_path, image_file)
-                    st.image(full_image_path, caption="新聞相關圖片")
-
-            # 顯示標題和摘要
-            if has_instagram_post:
-                display_title = instagram_posts[item_id]['ig_title']
-                display_summary = instagram_posts[item_id]['ig_caption']
-            else:
-                display_title = item['ai_title']
-                display_summary = item['ai_summary']
-
-            # 確保 display_title 和 display_summary 不是 None
-            display_title = str(display_title) if display_title is not None else ""
-            display_summary = str(display_summary) if display_summary is not None else ""
+            # 顯示圖片
+            image_id = item['integrated_image_id'] if item['integrated_image_id'] else item['png_file_id']
+            if image_id:
+                image_query = "SELECT data, content_type FROM files WHERE id = %s"
+                image_data = run_binary_query(image_query, (image_id,))
+                if image_data and image_data['data']:
+                    try:
+                        image = Image.open(BytesIO(bytes(image_data['data'])))
+                        st.image(image, caption="新聞相關圖片")
+                    except Exception as e:
+                        st.error(f"無法載入圖片: {e}")
 
             # 處理摘要中的 hashtag
             hashtag_index = display_summary.find('#')
@@ -230,8 +136,17 @@ def main():
             </div>
             """, unsafe_allow_html=True)
 
-    # 在頁面底部顯示載入的重要新聞和 Instagram 貼文數量
-    st.info(f"已載入 {len(important_news)} 條重要新聞和 {len(instagram_posts)} 條 Instagram 貼文")
+            # 顯示 Markdown 內容（預設不展開）
+            if item['md_file_id']:
+                md_query = "SELECT data FROM files WHERE id = %s"
+                md_data = run_binary_query(md_query, (item['md_file_id'],))
+                if md_data and md_data['data']:
+                    try:
+                        md_content = bytes(md_data['data']).decode('utf-8')
+                        with st.expander("顯示完整內容"):
+                            st.markdown(md_content)
+                    except Exception as e:
+                        st.error(f"無法載入 Markdown 內容: {e}")
 
 if __name__ == "__main__":
     main()

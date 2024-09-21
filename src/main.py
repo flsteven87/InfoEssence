@@ -37,7 +37,7 @@ class InfoEssence:
         self.image_generator = ImageGenerator()
         self.instagram_post_generator = InstagramPostGenerator()
         self.image_integrator = ImageIntegrator()
-        self.instagram_poster = InstagramPoster()  # 已註釋
+        self.instagram_poster = InstagramPoster()
 
     def update_media_and_feeds(self):
         logging.info("開始更新 Media 和 Feed 資訊")
@@ -126,11 +126,7 @@ def run_complete_process():
     info_essence.update_media_and_feeds()
     info_essence.fetch_and_store_news()
     info_essence.choose_and_generate_post(15)
-    try:
-        info_essence.instagram_poster.auto_post()
-        logging.info("已成功發布到 Instagram")
-    except Exception as e:
-        logging.error(f"發布到 Instagram 時發生錯誤：{str(e)}")
+    info_essence.instagram_poster.auto_post()
 
 def main():
     parser = argparse.ArgumentParser(description="InfoEssence: RSS Feed 處理器")
