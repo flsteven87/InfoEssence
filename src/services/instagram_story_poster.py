@@ -25,7 +25,8 @@ class InstagramStoryPoster:
         self.engine = create_engine(DATABASE_URL)
         self.SessionLocal = sessionmaker(bind=self.engine)
         self.imgur_client = ImgurClient(self.imgur_client_id, self.imgur_client_secret)
-        self.env = os.getenv("ENV", "development")
+        # self.env = os.getenv("ENV", "development")
+        self.env = "production"
 
     def upload_image_to_imgur(self, image_data: bytes) -> str:
         try:

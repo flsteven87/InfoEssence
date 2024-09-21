@@ -40,10 +40,10 @@ class NewsChooser:
 
     def load_news(self):
         now = datetime.now()
-        twenty_four_hours_ago = now - timedelta(hours=6)
+        six_hours_ago = now - timedelta(hours=6)
         with self.SessionLocal() as session:
             query = session.query(News).filter(
-                News.published_at.between(twenty_four_hours_ago, now)
+                News.published_at.between(six_hours_ago, now)
             ).order_by(News.published_at.desc())
             return query.all()
 
@@ -101,24 +101,6 @@ class NewsChooser:
             logger.error(f"Error in AI selection: {str(e)}")
             return []
 
-    def save_chosen_news_to_csv(self, chosen_news):
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"./chosen_news/{timestamp}.csv"
-        os.makedirs("./chosen_news", exist_ok=True)
-        
-        with open(filename, 'w', newline='', encoding='utf-8') as csvfile:
-            fieldnames = ['id', 'title']
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-            
-            writer.writeheader()
-            for item in chosen_news:
-                writer.writerow({
-                    'id': item.id, 
-                    'title': item.title
-                })
-        
-        logger.info(f"已將選擇的新聞保存到 {filename}")
-
     def save_chosen_news_to_database(self, chosen_news):
         with self.SessionLocal() as session:
             news_ids = [item.id for item in chosen_news]
@@ -140,7 +122,6 @@ class NewsChooser:
                 print(f"ID: {item.id}, 標題: {item.title}")
             print(f"\n總共從 {total_news} 條新聞中選出了 {len(chosen_news)} 條重要新聞")
             
-            # self.save_chosen_news_to_csv(chosen_news)
             self.save_chosen_news_to_database(chosen_news)
         else:
             logger.warning("沒有選出任何新聞")

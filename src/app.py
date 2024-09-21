@@ -9,6 +9,7 @@ import base64
 import html
 from io import BytesIO
 from PIL import Image
+import psycopg2.pool
 
 # 獲取當前腳本的目錄
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -25,27 +26,31 @@ st.set_page_config(
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# 連接到數據庫
+# 使用連接池
 @st.cache_resource
-def init_connection():
-    return psycopg2.connect(DATABASE_URL)
+def init_connection_pool():
+    return psycopg2.pool.SimpleConnectionPool(1, 10, DATABASE_URL)
 
-conn = init_connection()
+pool = init_connection_pool()
 
 # 一般查詢函數
-@st.cache_data(ttl=600)
 def run_query(query, params=None):
-    with conn.cursor(cursor_factory=RealDictCursor) as cur:
-        cur.execute(query, params)
-        return [dict(row) for row in cur.fetchall()]
+    with pool.getconn() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(query, params)
+            result = [dict(row) for row in cur.fetchall()]
+        pool.putconn(conn)
+    return result
 
-# 二進制數據查詢函數
+# 修改二進制數據查詢函數
 def run_binary_query(query, params=None):
-    with conn.cursor(cursor_factory=RealDictCursor) as cur:
-        cur.execute(query, params)
-        result = cur.fetchone()
-        if result:
-            return {k: v for k, v in result.items()}
+    with pool.getconn() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(query, params)
+            result = cur.fetchone()
+        pool.putconn(conn)
+    if result:
+        return {k: v for k, v in result.items()}
     return None
 
 # 主應用
@@ -83,7 +88,8 @@ def main():
     JOIN feeds f ON n.feed_id = f.id
     LEFT JOIN instagram_posts ip ON n.id = ip.news_id
     LEFT JOIN published p ON n.id = p.news_id
-    WHERE n.published_at >= %s AND n.published_at < %s
+    WHERE n.published_at AT TIME ZONE 'UTC' >= %s 
+      AND n.published_at AT TIME ZONE 'UTC' < %s
     """
     # 結束日期加天，以包含整個結束日期
     params = [start_date, end_date + timedelta(days=1)]
@@ -101,8 +107,16 @@ def main():
     # 執行查詢
     news_items = run_query(query, params)
 
-    # 顯示新聞
+    # 在顯示新聞之前去重
+    seen_ids = set()
+    unique_news_items = []
     for item in news_items:
+        if item['id'] not in seen_ids:
+            seen_ids.add(item['id'])
+            unique_news_items.append(item)
+
+    # 顯示新聞
+    for item in unique_news_items:
         # 格式化發布時間
         published_time = item['published_at'].strftime('%Y-%m-%d %H:%M')
         
