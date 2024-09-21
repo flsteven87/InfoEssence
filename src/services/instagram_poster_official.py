@@ -64,13 +64,16 @@ class InstagramStoryPoster:
             print("非生產環境，跳過實際的限時動態媒體物件創建")
             return "mock_story_media_id"
 
-    def create_story_container(self, image_url: str) -> str:
+    def create_story_container(self, image_url: str, post_id: str = None) -> str:
         url = f'{self.BASE_URL}/{self.user_id}/media'
         payload = {
             'image_url': image_url,
             'media_type': 'STORIES',
             'access_token': self.access_token
         }
+        
+        if post_id:
+            payload['story_link'] = post_id
 
         if self.env == 'production':
             response = requests.post(url, data=payload)
@@ -147,6 +150,9 @@ class InstagramStoryPoster:
                 print("已經為最近的新聞創建了限時動態")
                 return
 
+            # 獲取最新的 IG 貼文 ID
+            latest_post_id = self.get_latest_post_id()
+
             # 創建新的限時動態
             new_story = Story(
                 title=f"{recent_news.news.title}",
@@ -158,10 +164,40 @@ class InstagramStoryPoster:
             session.commit()
 
             try:
-                media_id = self.post_story(new_story.id)
-                print(f"成功發布限時動態。媒體 ID: {media_id}")
+                # 上傳圖片到 Imgur
+                image_data = session.query(File.data).filter(File.id == new_story.png_file_id).scalar()
+                image_url = self.upload_image_to_imgur(image_data)
+                
+                # 創建限時動態容器，包含最新貼文的連結
+                container_id = self.create_story_container(image_url, post_id=latest_post_id)
+                
+                if container_id:
+                    time.sleep(5)  # 等待幾秒鐘以確保處理完成
+                    self.publish_story(container_id)
+                    print(f"成功發布限時動態。媒體 ID: {container_id}")
             except Exception as e:
                 print(f"發布限時動態時發生錯誤: {e}")
+
+    def get_latest_post_id(self):
+        url = f'{self.BASE_URL}/{self.user_id}/media'
+        params = {
+            'fields': 'id',
+            'limit': 1,
+            'access_token': self.access_token
+        }
+        
+        if self.env == 'production':
+            response = requests.get(url, params=params)
+            if response.status_code == 200:
+                data = response.json()
+                if data['data']:
+                    return data['data'][0]['id']
+            print(f"獲取最新貼文 ID 時發生錯誤: {response.json()}")
+        else:
+            print("非生產環境，返回模擬的貼文 ID")
+            return "mock_post_id"
+        
+        return None
 
 def main():
     parser = argparse.ArgumentParser(description="發布 Instagram 限時動態")
