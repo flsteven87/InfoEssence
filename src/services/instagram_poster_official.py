@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 import tempfile
 import openai
 from pydantic import BaseModel
+from datetime import datetime, timedelta
 
 class ChosenInstagramPost(BaseModel):
     id: int
@@ -56,6 +57,16 @@ class InstagramPoster:
             published_news = session.query(Published.news_id).distinct().all()
             return [news.news_id for news in published_news]
 
+    def get_recent_published_instagram_posts(self, hours=8):
+        with self.SessionLocal() as session:
+            n_hours_ago = datetime.utcnow() - timedelta(hours=hours)
+            recent_published = session.query(Published).filter(Published.published_at >= n_hours_ago).all()
+            
+            post_ids = [pub.instagram_post_id for pub in recent_published]
+            posts = session.query(InstagramPost).filter(InstagramPost.id.in_(post_ids)).all()
+            
+            return [{"id": post.id, "ig_title": post.ig_title, "ig_caption": post.ig_caption} for post in posts]
+
     def select_instagram_post(self, instagram_posts):
         if not instagram_posts:
             print("沒有可用的 Instagram 貼文")
@@ -64,11 +75,11 @@ class InstagramPoster:
         published_news_ids = self.get_published_news_ids()
         unpublished_posts = [post for post in instagram_posts if post.news_id not in published_news_ids]
 
-        # published_instagram_post_ids = self.get_published_instagram_post_ids()
-
         if not unpublished_posts:
             print("所有新聞的貼文都已發布")
             return None
+
+        recent_published_posts = self.get_recent_published_instagram_posts()
 
         posts_data = []
         for post in unpublished_posts:
@@ -79,8 +90,13 @@ class InstagramPoster:
             })
 
         print(f"準備選擇的貼文數據：{posts_data}")
+        print(f"最近發布的貼文數據：{recent_published_posts}")
 
-        prompt = self.prompt_template.format(posts_list=posts_data)
+        # 這裡需要更新 prompt 模板，以包含最近發布的貼文信息
+        prompt = self.prompt_template.format(
+            posts_list=posts_data,
+            recent_published_posts=recent_published_posts
+        )
 
         try:
             client = openai.OpenAI()
