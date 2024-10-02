@@ -57,7 +57,8 @@ class ImageGenerator:
 
     def generate_news_image(self, db: Session, news_id: int, re_gen: bool = False) -> bool:
         try:
-            news = get_news_by_id(news_id)
+            # 使用傳入的 db 會話重新查詢 News 對象，並預先加載 media 關係
+            news = db.query(News).options(joinedload(News.media)).filter(News.id == news_id).first()
             if not news:
                 raise Exception(f"找不到 ID 為 {news_id} 的新聞")
 
