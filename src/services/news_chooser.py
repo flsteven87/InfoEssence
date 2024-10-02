@@ -71,6 +71,8 @@ class NewsChooser:
             recent_published_ig_posts=recent_published_ig_posts
         )
 
+        print(prompt)
+
         client = openai.OpenAI()
 
         try:

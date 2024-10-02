@@ -205,6 +205,7 @@ class InstagramPoster:
 
                 # 記錄已發布的貼文
                 self.record_published_post(post_id)
+                print(f"已發布的貼文：{post.ig_title}, {post.ig_caption}")
 
                 return media_id
         except Exception as e:
