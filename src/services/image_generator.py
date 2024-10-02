@@ -3,7 +3,7 @@ from typing import Dict, Any
 from openai import OpenAI
 from pydantic import BaseModel
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import sessionmaker, Session, joinedload
 import requests
 
 from src.config.settings import OPENAI_API_KEY, DATABASE_URL
