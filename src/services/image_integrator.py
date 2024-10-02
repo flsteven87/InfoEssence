@@ -6,10 +6,12 @@ from src.config.settings import DATABASE_URL
 from src.database.models import ChosenNews, InstagramPost, News, File
 from src.database.operations import upsert_file, upsert_ig_post_with_png
 from src.utils.file_utils import get_text_width
+from src.utils.database_utils import get_latest_chosen_news, get_instagram_posts, get_news_image, get_news_by_id
 import io
 import hashlib
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
+from sqlalchemy.orm import Session
 
 class ImageIntegrator:
     def __init__(self):
@@ -48,20 +50,6 @@ class ImageIntegrator:
 
         self.is_production = os.getenv('ENV') == 'production'
 
-    def get_latest_chosen_news(self, session: Session):
-        return session.query(ChosenNews).order_by(desc(ChosenNews.timestamp)).first()
-
-    def get_instagram_posts(self, session: Session, chosen_news_id: int):
-        return session.query(InstagramPost).filter(InstagramPost.chosen_news_id == chosen_news_id).all()
-
-    def get_news_image(self, session: Session, news_id: int):
-        news = session.query(News).filter(News.id == news_id).first()
-        if news and news.png_file_id:
-            file = session.query(File).filter(File.id == news.png_file_id).first()
-            if file:
-                return Image.open(io.BytesIO(file.data))
-        return None
-
     def integrate_image(self, news_id: int, ig_title: str, published_time: str):
         with Session(self.engine) as session:
             img = self.get_news_image(session, news_id)
@@ -87,24 +75,41 @@ class ImageIntegrator:
 
             return img_byte_arr
 
-    def integrate_ig_images(self):
-        with Session(self.engine) as session:
-            latest_chosen_news = self.get_latest_chosen_news(session)
-            if not latest_chosen_news:
-                print("沒有找到最新的已選新聞")
-                return
+    def integrate_ig_images(self, db: Session):
+        latest_chosen_news = get_latest_chosen_news()
+        if not latest_chosen_news:
+            print("沒有找到最新的已選新聞")
+            return
 
-            instagram_posts = self.get_instagram_posts(session, latest_chosen_news.id)
-            for post in instagram_posts:
-                news = session.query(News).filter(News.id == post.news_id).first()
-                if news:
-                    taipei_time = self.convert_to_taipei_time(news.published_at)
-                    integrated_image = self.integrate_image(post.news_id, post.ig_title, taipei_time.strftime('%Y.%m.%d %H:%M GMT+8'))
-                    
-                    # 使用新的 upsert_ig_post_with_png 函數
-                    post_id = upsert_ig_post_with_png(session, post.id, integrated_image)
-                    
-                    print(f"已整合並上傳圖片: Instagram 貼文 ID {post_id}, 新聞 ID {post.news_id}")
+        instagram_posts = get_instagram_posts(latest_chosen_news.id)
+        
+        for post in instagram_posts:
+            image_data = get_news_image(post.news_id)
+            if image_data:
+                img = Image.open(io.BytesIO(image_data))
+                self.img = img
+                self.ig_title = post.ig_title
+                news = get_news_by_id(post.news_id)
+                taipei_time = self.convert_to_taipei_time(news.published_at)
+                self.published_time = taipei_time.strftime('%Y.%m.%d %H:%M GMT+8')
+
+                self.process_title()
+                self.draw_background()
+                self.draw_title()
+                self.draw_brand_mark()
+                self.draw_published_time()
+                self.draw_white_line()
+                self.draw_gradient_square()
+
+                # 將圖片保存到內存中
+                img_byte_arr = io.BytesIO()
+                self.img.save(img_byte_arr, format='PNG')
+                img_byte_arr = img_byte_arr.getvalue()
+
+                # 正確調用 upsert_ig_post_with_png 函數
+                post_id = upsert_ig_post_with_png(db, post.id, img_byte_arr)
+
+                print(f"已整合並上傳圖片: Instagram 貼文 ID {post_id}, 新聞 ID {post.news_id}")
 
     def process_title(self):
 

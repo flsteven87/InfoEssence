@@ -43,3 +43,16 @@ cnbc:
   feeds:
     - name: World
       url: 'https://www.cnbc.com/id/100727362/device/rss/rss.html'
+financial_times:
+  name: Financial Times
+  url: https://www.ft.com
+  status: active
+  feeds:
+    - name: World
+      url: 'https://www.ft.com/world?format=rss'
+    - name: Markets
+      url: 'https://www.ft.com/markets?format=rss'
+    - name: Technology
+      url: 'https://www.ft.com/technology?format=rss'
+    - name: Global Economy
+      url: 'https://www.ft.com/global-economy?format=rss'

@@ -8,7 +8,7 @@ from PIL import ImageFont
 import logging
 from src.database.models import News, Media, Feed, ChosenNews, InstagramPost
 from src.services.image_integrator import ImageIntegrator
-from src.utils.file_utils import get_text_width
+from src.utils.file_utils import get_text_width, load_prompt_template
 from src.utils.database_utils import get_latest_chosen_news
 from src.config.settings import DATABASE_URL, OPENAI_API_KEY
 from pydantic import BaseModel
@@ -28,16 +28,14 @@ class InstagramPostGenerator:
         self.client = OpenAI(api_key=OPENAI_API_KEY)
         self.engine = create_engine(DATABASE_URL)
         self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
-        self.system_prompt = self.load_prompt_template()
+        self.system_prompt = load_prompt_template('instagram_post_prompt.txt')
         self.title_font_path = "./src/assets/jf-openhuninn-2.0.ttf"
         self.max_regeneration_attempts = 30
         self.title_font_size = int(56)
         self.title_font = ImageFont.truetype(self.title_font_path, self.title_font_size)
         self.title_width_for_draw = 1024 - 40 - 40 - 30
 
-    def load_prompt_template(self):
-        prompt_path = os.path.join(os.path.dirname(__file__), 'prompts', 'instagram_post_prompt.txt')
-        with open(prompt_path, 'r', encoding='utf-8') as f:
+    def process_ig_title_fullwidth(self, text):
             return f.read().strip()
 
     def process_ig_title_fullwidth(self, text):
@@ -119,12 +117,12 @@ class InstagramPostGenerator:
         return get_text_width(self.title_font, title) <= self.title_width_for_draw * 2
 
     def generate_instagram_posts(self):
+        chosen_news = get_latest_chosen_news()
+        if not chosen_news:
+            logging.warning("沒有找到最新的已選新聞")
+            return []
+        ig_posts = []
         with self.SessionLocal() as db:
-            chosen_news = get_latest_chosen_news(db)
-            if not chosen_news:
-                logging.warning("沒有找到最新的已選新聞")
-                return []
-            ig_posts = []
             for news_id in chosen_news.news_ids:
                 news = db.query(News).options(joinedload(News.md_file)).filter(News.id == news_id).first()
                 if news:
@@ -163,7 +161,7 @@ def main():
             print(f"Instagram 說明: {post['ig_caption']}")
         print(f"\n所有貼文內容已保存到數據庫")
     except Exception as e:
-        print(f"發生未預期的錯誤: {e}")
+        print(f"發未預期的錯誤: {e}")
         logging.exception("發生未預期的錯誤")
 
 if __name__ == "__main__":

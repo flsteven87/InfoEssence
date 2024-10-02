@@ -10,6 +10,8 @@ import logging
 from datetime import date, timedelta
 import csv
 from datetime import datetime
+from src.utils.database_utils import get_recent_published_instagram_posts
+from src.utils.file_utils import load_prompt_template
 
 # 設置日誌
 logging.basicConfig(level=logging.INFO)
@@ -24,19 +26,11 @@ class ChosenNewsParameters(BaseModel):
     chosen_news: List[ChosenNewsItem]
 
 class NewsChooser:
-    def __init__(self, n: int):
-        self.n = n
-        
+    def __init__(self, num_chosen):
+        self.num_chosen = num_chosen
         self.engine = create_engine(DATABASE_URL)
-        self.SessionLocal = sessionmaker(bind=self.engine)
-        
-        openai.api_key = OPENAI_API_KEY
-        self.prompt_template = self.load_prompt_template()
-
-    def load_prompt_template(self):
-        prompt_path = os.path.join(os.path.dirname(__file__), 'prompts', 'choose_news_prompt.txt')
-        with open(prompt_path, 'r', encoding='utf-8') as f:
-            return f.read().strip()
+        self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
+        self.prompt_template = load_prompt_template('choose_news_prompt.txt')
 
     def load_news(self):
         now = datetime.now()
@@ -50,7 +44,7 @@ class NewsChooser:
     def choose_important_news(self, news_list):
         total_news = len(news_list)
         news_data = []
-        
+
         with self.SessionLocal() as session:
             for news in news_list:
                 md_content = ""
@@ -58,7 +52,7 @@ class NewsChooser:
                     md_file = session.query(File).filter(File.id == news.md_file_id).first()
                     if md_file:
                         md_content = md_file.data.decode('utf-8')
-                
+
                 news_data.append({
                     "id": news.id,
                     "title": news.title,
@@ -67,7 +61,15 @@ class NewsChooser:
                     "ai_summary": news.ai_summary
                 })
 
-        prompt = self.prompt_template.format(n=self.n, news_list=news_data, total_news=total_news)
+        # 獲取最近發布的新聞
+        recent_published_ig_posts = get_recent_published_instagram_posts()
+
+        prompt = self.prompt_template.format(
+            n=self.num_chosen, 
+            news_list=news_data, 
+            total_news=total_news,
+            recent_published_ig_posts=recent_published_ig_posts
+        )
 
         client = openai.OpenAI()
 
@@ -120,8 +122,8 @@ class NewsChooser:
             logger.info(f"從 {total_news} 條新聞中選出了 {len(chosen_news)} 條重要新聞：")
             for item in chosen_news:
                 print(f"ID: {item.id}, 標題: {item.title}")
-            print(f"\n總共從 {total_news} 條新聞中選出了 {len(chosen_news)} 條重要新聞")
-            
+            print(f"\n總共從 {total_news} 條新聞中選出了 {len(chosen_news)} 重要新聞")
+
             self.save_chosen_news_to_database(chosen_news)
         else:
             logger.warning("沒有選出任何新聞")

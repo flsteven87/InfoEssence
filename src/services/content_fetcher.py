@@ -28,6 +28,7 @@ class ContentFetcher:
                 if response.status_code == 200:
                     content = response.text
                     news_id = upsert_news_with_content(self.db, news_data, content)
+                    self._log_fetched_news(news_data['title'])
                     return content
                 
                 # 處理非 200 狀態碼
@@ -50,8 +51,11 @@ class ContentFetcher:
             logger.warning(f"達到速率限制，增加休眠時間。嘗試次數：{attempt + 1}")
             time.sleep(60 * (attempt + 1))  # 隨著嘗試次數增加休眠時間
         elif "451" in str(e):
-            logger.error(f"獲取內容失敗：URL：{url} - 錯誤：{e}")
+            logger.error(f"爬取內容失敗：URL：{url} - 錯誤：{e}")
             time.sleep(3)
         else:
-            logger.error(f"獲取內容失敗：URL：{url} - 錯誤：{e}")
+            logger.error(f"爬取內容失敗：URL：{url} - 錯誤：{e}")
             time.sleep(10)
+
+    def _log_fetched_news(self, title):
+        logger.info(f"成功爬取新聞：{title}")

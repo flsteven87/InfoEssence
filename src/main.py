@@ -125,13 +125,13 @@ class InfoEssence:
                     # 生成圖片並存入資料庫
                     for post in ig_posts:
                         try:
-                            self.image_generator.generate_news_image(post.news_id)
+                            self.image_generator.generate_news_image(db, post.news_id)
                             logging.info(f"成功為新聞 ID {post.news_id} 生成圖片")
                         except Exception as e:
                             logging.error(f"處理新聞 ID {post.news_id} 的圖片時發生錯誤：{str(e)}")
                     
                     # 整合圖片
-                    self.image_integrator.integrate_ig_images()
+                    self.image_integrator.integrate_ig_images(db)
                     logging.info("已完成圖片整合")
                 else:
                     logging.warning("沒有找到任何 Instagram 貼文")

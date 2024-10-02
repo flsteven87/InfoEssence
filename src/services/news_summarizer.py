@@ -1,5 +1,6 @@
 from openai import OpenAI
 from src.config.settings import OPENAI_API_KEY
+from src.utils.file_utils import load_prompt_template
 import os
 from pydantic import BaseModel
 import openai
@@ -11,25 +12,16 @@ class News(BaseModel):
 class NewsSummarizer:
     def __init__(self, api_key: str = OPENAI_API_KEY):
         self.client = OpenAI(api_key=api_key)
-        self.prompt_path = os.path.join(os.path.dirname(__file__), 'prompts', 'summarize_prompt.txt')
-
-    def _load_system_prompt(self) -> str:
-        if not os.path.exists(self.prompt_path):
-            raise FileNotFoundError(f"提示文件不存在：{self.prompt_path}")
-        
-        with open(self.prompt_path, 'r', encoding='utf-8') as f:
-            return f.read().strip()
+        self.system_prompt = load_prompt_template('summarize_prompt.txt')
 
     def summarize_content(self, title: str, content: str, model: str = 'gpt-4o-mini') -> tuple[str, str, str]:
         max_attempts = 3
         for attempt in range(max_attempts):
             try:
-                system_prompt = self._load_system_prompt()
-
                 response = self.client.chat.completions.create(
                     model=model,
                     messages=[
-                        {"role": "system", "content": system_prompt},
+                        {"role": "system", "content": self.system_prompt},
                         {"role": "user", "content": f"title: {title}, content: {content}"}
                     ],
                     tools=[
