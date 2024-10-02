@@ -244,7 +244,7 @@ class InstagramPoster:
 
         try:
             media_id = self.post_instagram(selected_post.id)
-            print(f"成功發布 Instagram 貼��。媒體 ID: {media_id}")
+            print(f"成功發布 Instagram 貼文。媒體 ID: {media_id}")
         except Exception as e:
             print(f"發布 Instagram 貼文時發生錯誤: {e}")
 

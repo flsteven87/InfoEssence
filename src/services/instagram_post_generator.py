@@ -52,18 +52,41 @@ class InstagramPostGenerator:
             result = self._generate_post_content(news)
             
             if self._is_title_valid(result.ig_title):
+                # 處理 caption，添加媒體來源作為 hashtag
+                caption = f"新聞來源：{news.media.name}\n\n{result.ig_caption}"
+                # 假設 caption 最後已經有一些 hashtags
+                if "#" in caption:
+                    # 在最後一個 hashtag 之前插入媒體 hashtag
+                    last_hashtag_index = caption.rfind("#")
+                    caption = (f"{caption[:last_hashtag_index]}#"
+                               f"{news.media.name.replace(' ', '')} "
+                               f"{caption[last_hashtag_index:]}")
+                else:
+                    # 如果沒有 hashtags，直接在最後添加
+                    caption += f"\n\n#{news.media.name.replace(' ', '')}"
+                
                 return {
                     "ig_title": self.process_ig_title_fullwidth(result.ig_title),
-                    "ig_caption": result.ig_caption,
+                    "ig_caption": caption,
                     "news": news
                 }
             else:
                 logging.warning(f"第 {attempt + 1} 次嘗試：ig_title: '{result.ig_title}' 寬度超過2行，重新生成")
         
         logging.error(f"無法生成符合寬度要求的 ig_title，使用最後一次生成的結果 '{result.ig_title}'")
+        # 對於錯誤情況，我們也應用相同的 caption 處理邏輯
+        caption = f"新聞來源：{news.media.name}\n\n{result.ig_caption}"
+        if "#" in caption:
+            last_hashtag_index = caption.rfind("#")
+            caption = (f"{caption[:last_hashtag_index]}#"
+                       f"{news.media.name.replace(' ', '')} "
+                       f"{caption[last_hashtag_index:]}")
+        else:
+            caption += f"\n\n#{news.media.name.replace(' ', '')}"
+        
         return {
             "ig_title": self.process_ig_title_fullwidth(result.ig_title),
-            "ig_caption": result.ig_caption,
+            "ig_caption": caption,
             "news": news
         }
 
