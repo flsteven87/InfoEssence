@@ -46,17 +46,8 @@ class InstagramPoster:
             print("沒有可用的 Instagram 貼文")
             return None
 
-        published_news_ids = get_published_news_ids()
-        unpublished_posts = [post for post in instagram_posts if post.news_id not in published_news_ids]
-
-        if not unpublished_posts:
-            print("所有新聞的貼文都已發布")
-            return None
-
-        recent_published_posts = get_recent_published_instagram_posts()
-
         posts_data = []
-        for post in unpublished_posts:
+        for post in instagram_posts:
             posts_data.append({
                 "id": post.id,
                 "ig_title": post.ig_title,
@@ -64,12 +55,10 @@ class InstagramPoster:
             })
 
         print(f"準備選擇的貼文數據：{posts_data}")
-        print(f"最近發布的貼文數據：{recent_published_posts}")
 
         # 這裡需要更新 prompt 模板，以包含最近發布的貼文信息
         prompt = self.prompt_template.format(
-            posts_list=posts_data,
-            recent_published_posts=recent_published_posts
+            posts_list=posts_data
         )
 
         try:
@@ -78,7 +67,7 @@ class InstagramPoster:
             for attempt in range(max_retries):
                 try:
                     response = client.chat.completions.create(
-                        model="gpt-4o-2024-08-06",  # 請確認這是正確的模型名稱
+                        model="gpt-4o-2024-08-06",
                         temperature=0,
                         messages=[
                             {"role": "system", "content": "你是一位專業的社交媒體編輯，擅長選擇最適合在 Instagram 上發布的新聞。"},

@@ -53,7 +53,7 @@ class InstagramPostGenerator:
             
             if self._is_title_valid(result.ig_title):
                 # 處理 caption，添加媒體來源作為 hashtag
-                caption = f"新聞來源：{news.media.name}\n\n{result.ig_caption}"
+                caption = f"新聞來源：{news.media.name}\n{result.ig_caption}"
                 # 假設 caption 最後已經有一些 hashtags
                 if "#" in caption:
                     # 在最後一個 hashtag 之前插入媒體 hashtag

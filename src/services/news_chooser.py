@@ -10,7 +10,7 @@ import logging
 from datetime import date, timedelta
 import csv
 from datetime import datetime
-from src.utils.database_utils import get_recent_published_instagram_posts
+from src.utils.database_utils import get_recent_published_instagram_posts, get_published_news_ids, get_news_by_id
 from src.utils.file_utils import load_prompt_template
 
 # 設置日誌
@@ -31,6 +31,7 @@ class NewsChooser:
         self.engine = create_engine(DATABASE_URL)
         self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
         self.prompt_template = load_prompt_template('choose_news_prompt.txt')
+        self.filter_prompt_template = load_prompt_template('filter_published_news_prompt.txt')
 
     def load_news(self):
         now = datetime.now()
@@ -45,14 +46,9 @@ class NewsChooser:
         total_news = len(news_list)
         news_data = []
 
-        with self.SessionLocal() as session:
-            for news in news_list:
-                md_content = ""
-                if news.md_file_id:
-                    md_file = session.query(File).filter(File.id == news.md_file_id).first()
-                    if md_file:
-                        md_content = md_file.data.decode('utf-8')
-
+        for news_item in news_list:
+            news = get_news_by_id(news_item.id)
+            if news:
                 news_data.append({
                     "id": news.id,
                     "title": news.title,
@@ -61,14 +57,10 @@ class NewsChooser:
                     "ai_summary": news.ai_summary
                 })
 
-        # 獲取最近發布的新聞
-        recent_published_ig_posts = get_recent_published_instagram_posts()
-
         prompt = self.prompt_template.format(
             n=self.num_chosen, 
             news_list=news_data, 
-            total_news=total_news,
-            recent_published_ig_posts=recent_published_ig_posts
+            total_news=total_news
         )
 
         print(prompt)
@@ -97,12 +89,75 @@ class NewsChooser:
             if tool_call.function.name == "output_chosen_news":
                 chosen_news = ChosenNewsParameters.model_validate_json(tool_call.function.arguments).chosen_news
                 logger.info(f"AI selected {len(chosen_news)} news items")
+                print(chosen_news)
                 return chosen_news
             else:
                 logger.error("Unexpected function call")
                 return []
         except Exception as e:
             logger.error(f"Error in AI selection: {str(e)}")
+            return []
+
+    def filter_unpublished_news(self, news_list):
+        published_news_ids = get_published_news_ids()
+        recent_published_ig_posts = get_recent_published_instagram_posts()
+
+        with self.SessionLocal() as session:
+            unpublished_news = [news for news in news_list if news.id not in published_news_ids]
+
+            if not unpublished_news:
+                logger.warning("所有新聞都已發布")
+                return []
+
+            total_news = len(unpublished_news)
+            news_data = []
+
+            for news in unpublished_news:
+                news_data.append({
+                    "id": news.id,
+                    "title": news.title,
+                    "summary": news.summary,
+                    "ai_title": news.ai_title,
+                    "ai_summary": news.ai_summary
+                })
+
+        # AI 過濾邏輯保持不變
+        prompt = self.filter_prompt_template.format(
+            news_list=news_data,
+            total_news=total_news,
+            recent_published_ig_posts=recent_published_ig_posts
+        )
+
+        client = openai.OpenAI()
+
+        try:
+            response = client.chat.completions.create(
+                model="gpt-4o-2024-08-06",
+                temperature=0,
+                messages=[
+                    {"role": "system", "content": "You are a professional news editor skilled at filtering out published news."},
+                    {"role": "user", "content": prompt}
+                ],
+                tools=[{
+                    "type": "function",
+                    "function": {
+                        "name": "output_unpublished_news",
+                        "description": "Filter out published news from the original list, keeping the original IDs.",
+                        "parameters": ChosenNewsParameters.model_json_schema()
+                    }
+                }]
+            )
+
+            tool_call = response.choices[0].message.tool_calls[0]
+            if tool_call.function.name == "output_unpublished_news":
+                unpublished_news = ChosenNewsParameters.model_validate_json(tool_call.function.arguments).chosen_news
+                logger.info(f"AI 識別出 {len(unpublished_news)} 條未發布的新聞")
+                return unpublished_news
+            else:
+                logger.error("意外的函數調用")
+                return []
+        except Exception as e:
+            logger.error(f"AI 過濾過程中出錯：{str(e)}")
             return []
 
     def save_chosen_news_to_database(self, chosen_news):
@@ -118,18 +173,25 @@ class NewsChooser:
         total_news = len(news_list)
         logger.info(f"載入了 {total_news} 條過去 6 小時內發布的新聞")
 
-        chosen_news = self.choose_important_news(news_list)
+        unpublished_news = self.filter_unpublished_news(news_list)
+        
+        if not unpublished_news:
+            logger.warning("沒有未發布的新聞")
+            print(f"從 {total_news} 條新聞中沒有找到未發布的新聞")
+            return
+
+        chosen_news = self.choose_important_news(unpublished_news)
 
         if chosen_news:
-            logger.info(f"從 {total_news} 條新聞中選出了 {len(chosen_news)} 條重要新聞：")
+            logger.info(f"從 {len(unpublished_news)} 條未發布的新聞中選出了 {len(chosen_news)} 條重要新聞：")
             for item in chosen_news:
                 print(f"ID: {item.id}, 標題: {item.title}")
-            print(f"\n總共從 {total_news} 條新聞中選出了 {len(chosen_news)} 重要新聞")
+            print(f"\n總共從 {len(unpublished_news)} 條未發布的新聞中選出了 {len(chosen_news)} 條重要新聞")
 
             self.save_chosen_news_to_database(chosen_news)
         else:
             logger.warning("沒有選出任何新聞")
-            print(f"從 {total_news} 條新聞中沒有選出任何重要新聞")
+            print(f"從 {len(unpublished_news)} 條未發布的新聞中沒有選出任何重要新聞")
 
 def main():
     import argparse

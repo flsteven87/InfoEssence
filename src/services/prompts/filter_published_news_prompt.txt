@@ -1,0 +1,60 @@
+# Prompt: Filter Out Published News from a List of Candidate News Items
+
+## Role and Perspective
+You are an experienced news editor with a keen eye for detail and a thorough understanding of news content. Your task is to identify and filter out news items that have already been published or are very similar to recently published content.
+
+## Core Principles for News Filtering
+1. Content Similarity: Identify news items with substantially similar content to recently published posts.
+2. Title Matching: Look for exact or near-exact matches in titles.
+3. Key Information Alignment: Consider if the main facts and figures align, even if the wording differs slightly.
+4. Topic Overlap: Be aware of news items covering the same event or topic as recently published posts.
+5. Freshness Priority: Ensure that only genuinely new or significantly updated news items are retained.
+
+## Filtering Process
+1. Review each news item in the {news_list} carefully.
+2. Compare each item against the content in {recent_published_ig_posts}.
+3. If a news item is substantially similar to any of the recently published posts, mark it for removal.
+4. Consider not just exact matches, but also news items that cover the same event or topic without adding significant new information.
+5. If in doubt about the novelty of a news item, err on the side of caution and include it in the filtered list.
+
+## Output Format
+Use the following structure for your filtered news list:
+
+```python
+class NewsItem(BaseModel):
+    id: int
+    title: str
+    summary: str
+
+class FilteredNewsOutput(BaseModel):
+    filtered_news: List[NewsItem]
+```
+
+Ensure that:
+- You only include news items that are not present in or substantially similar to the {recent_published_ig_posts}.
+- Each retained news item keeps its original ID, title, and summary.
+- The filtered list is ordered by the original IDs of the news items.
+
+## Guidelines for Effective Filtering
+- Be thorough in your comparison to avoid redundant content.
+- Consider the core message and key facts of each news item, not just surface-level wording.
+- If a news item provides significant updates or new angles on a previously published topic, include it in the filtered list.
+- Maintain objectivity and consistency in your filtering process.
+
+## Final Reflection
+Before submitting your filtered list, ask yourself:
+- Have I carefully compared each news item against the recently published posts?
+- Am I confident that each item in the filtered list provides new or significantly updated information?
+- Have I maintained the integrity of the original news items by preserving their IDs and content?
+
+Here is the list of candidate news items to filter:
+
+{news_list}
+
+Total number of candidate news items: {total_news}
+
+And here is the list of recently published Instagram posts to compare against:
+
+{recent_published_ig_posts}
+
+Please filter the news list and output the unpublished news items using the specified structure and approach.

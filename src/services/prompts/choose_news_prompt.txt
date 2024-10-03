@@ -79,20 +79,10 @@ Before submitting your analysis, ask yourself:
 - Does my overall analysis paint a clear picture of the current global landscape?
 - Have I given appropriate weight to significant corporate and technological developments?
 
-## Recently Published News Consideration
-Below is a list of recently published news items:
-{recent_published_ig_posts}
-
-When selecting news items, please consider the following:
-- Avoid selecting news that is identical or very similar to recently published items.
-- However, if a previously reported topic has significant updates, crucial new information, or notable developments in the situation, it may be selected.
-- When including such updates, clearly highlight what's new and why it's important in the global context.
-- Maintain a balance between fresh topics and important updates to ongoing stories.
-
 Here is the list of news items to analyze:
 
 {news_list}
 
 Total number of news items: {total_news}
 
-Please select and analyze the top {n} items using the specified structure and approach, keeping in mind the guidelines for recently published news.
+Please select and analyze the top {n} items using the specified structure and approach.
