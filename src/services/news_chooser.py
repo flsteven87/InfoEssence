@@ -63,8 +63,6 @@ class NewsChooser:
             total_news=total_news
         )
 
-        print(prompt)
-
         client = openai.OpenAI()
 
         try:
@@ -151,7 +149,7 @@ class NewsChooser:
             tool_call = response.choices[0].message.tool_calls[0]
             if tool_call.function.name == "output_unpublished_news":
                 unpublished_news = ChosenNewsParameters.model_validate_json(tool_call.function.arguments).chosen_news
-                logger.info(f"AI 識別出 {len(unpublished_news)} 條未發布的新聞")
+                logger.info(f"AI 從 {len(news_data)} 條新聞中識別出 {len(unpublished_news)} 條未發布的新聞")
                 return unpublished_news
             else:
                 logger.error("意外的函數調用")
