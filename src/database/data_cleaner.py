@@ -11,58 +11,91 @@ class DataCleaner:
         self.SessionLocal = sessionmaker(bind=self.engine)
 
     def clear_old_news(self, hours=24):
-        """清除指定小時數之前的所有舊新聞及其關聯數據，包括已發布的新聞"""
+        """清除指定小時數之前的所有舊新聞及其關聯數據，包括已發布的新聞和孤立的文件"""
         with self.SessionLocal() as db:
             cutoff_time = datetime.now() - timedelta(hours=hours)
             
-            # 獲取要刪除的所有舊新聞記錄
-            old_news_ids = db.execute(
-                select(News.id).where(News.published_at < cutoff_time)
-            ).scalars().all()
-
             deleted_news = 0
             deleted_files = 0
             deleted_instagram_posts = 0
             deleted_published = 0
             deleted_stories = 0
 
-            # 首先解除所有相關表的外鍵約束
-            db.execute(update(InstagramPost).where(InstagramPost.news_id.in_(old_news_ids)).values(news_id=None))
-            db.execute(update(News).where(News.id.in_(old_news_ids)).values(md_file_id=None, png_file_id=None))
+            # 收集所有需要刪除的文件 ID
+            files_to_delete = set()
 
-            # 刪除相關的 Story 記錄
-            stories_to_delete = db.execute(
-                select(Story).join(Published).where(Published.news_id.in_(old_news_ids))
+            # 獲取要刪除的所有舊新聞記錄
+            old_news = db.execute(
+                select(News).where(News.published_at < cutoff_time)
             ).scalars().all()
-            for story in stories_to_delete:
-                db.delete(story)
-                deleted_stories += 1
 
-            # 刪除相關的 Published 記錄
-            deleted_published = db.execute(delete(Published).where(Published.news_id.in_(old_news_ids))).rowcount
+            old_news_ids = [news.id for news in old_news]
 
-            # 刪除相關的 InstagramPost 記錄
-            instagram_posts = db.execute(select(InstagramPost).where(InstagramPost.news_id.in_(old_news_ids))).scalars().all()
+            for news in old_news:
+                if news.md_file_id:
+                    files_to_delete.add(news.md_file_id)
+                if news.png_file_id:
+                    files_to_delete.add(news.png_file_id)
+
+            # 處理 Instagram 貼文
+            instagram_posts = db.execute(
+                select(InstagramPost).where(or_(
+                    InstagramPost.news_id.in_(old_news_ids),
+                    InstagramPost.news_id.notin_(select(News.id))
+                ))
+            ).scalars().all()
+
             for post in instagram_posts:
                 if post.integrated_image_id:
-                    db.execute(delete(File).where(File.id == post.integrated_image_id))
-                    deleted_files += 1
+                    files_to_delete.add(post.integrated_image_id)
                 db.delete(post)
                 deleted_instagram_posts += 1
 
-            # 刪除相關的 File 記錄
-            files_to_delete = db.execute(
-                select(File.id).where(
-                    or_(
-                        File.id.in_(select(News.md_file_id).where(News.id.in_(old_news_ids))),
-                        File.id.in_(select(News.png_file_id).where(News.id.in_(old_news_ids)))
+            # 處理已發布的記錄
+            published_records = db.execute(
+                select(Published).where(or_(
+                    Published.news_id.in_(old_news_ids),
+                    Published.news_id.notin_(select(News.id))
+                ))
+            ).scalars().all()
+
+            for record in published_records:
+                db.delete(record)
+                deleted_published += 1
+
+            # 處理 Story 記錄
+            stories = db.execute(
+                select(Story).where(or_(
+                    Story.published_id.in_([p.id for p in published_records]),
+                    Story.published_id.notin_(select(Published.id))
+                ))
+            ).scalars().all()
+
+            for story in stories:
+                db.delete(story)
+                deleted_stories += 1
+
+            # 刪除 News 記錄
+            for news in old_news:
+                db.delete(news)
+                deleted_news += 1
+
+            # 查找並刪除孤立的文件
+            orphaned_files = db.execute(
+                select(File).where(
+                    and_(
+                        not_(File.id.in_(select(News.md_file_id).where(News.md_file_id.isnot(None)))),
+                        not_(File.id.in_(select(News.png_file_id).where(News.png_file_id.isnot(None)))),
+                        not_(File.id.in_(select(InstagramPost.integrated_image_id).where(InstagramPost.integrated_image_id.isnot(None))))
                     )
                 )
             ).scalars().all()
-            deleted_files += db.execute(delete(File).where(File.id.in_(files_to_delete))).rowcount
 
-            # 最後刪除 News 記錄
-            deleted_news = db.execute(delete(News).where(News.id.in_(old_news_ids))).rowcount
+            files_to_delete.update([file.id for file in orphaned_files])
+
+            # 刪除所有收集到的文件
+            if files_to_delete:
+                deleted_files = db.execute(delete(File).where(File.id.in_(files_to_delete))).rowcount
 
             db.commit()
 
