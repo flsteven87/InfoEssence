@@ -1,7 +1,7 @@
 from sqlalchemy import create_engine, delete, select, and_, not_, update, func, or_
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime, timedelta
-from .models import News, File, InstagramPost, Published
+from .models import News, File, InstagramPost, Published, Story
 from src.config.settings import DATABASE_URL
 import argparse
 
@@ -24,10 +24,22 @@ class DataCleaner:
             deleted_files = 0
             deleted_instagram_posts = 0
             deleted_published = 0
+            deleted_stories = 0
 
             # 首先解除所有相關表的外鍵約束
             db.execute(update(InstagramPost).where(InstagramPost.news_id.in_(old_news_ids)).values(news_id=None))
             db.execute(update(News).where(News.id.in_(old_news_ids)).values(md_file_id=None, png_file_id=None))
+
+            # 刪除相關的 Story 記錄
+            stories_to_delete = db.execute(
+                select(Story).join(Published).where(Published.news_id.in_(old_news_ids))
+            ).scalars().all()
+            for story in stories_to_delete:
+                db.delete(story)
+                deleted_stories += 1
+
+            # 刪除相關的 Published 記錄
+            deleted_published = db.execute(delete(Published).where(Published.news_id.in_(old_news_ids))).rowcount
 
             # 刪除相關的 InstagramPost 記錄
             instagram_posts = db.execute(select(InstagramPost).where(InstagramPost.news_id.in_(old_news_ids))).scalars().all()
@@ -37,9 +49,6 @@ class DataCleaner:
                     deleted_files += 1
                 db.delete(post)
                 deleted_instagram_posts += 1
-
-            # 刪除相關的 Published 記錄
-            deleted_published = db.execute(delete(Published).where(Published.news_id.in_(old_news_ids))).rowcount
 
             # 刪除相關的 File 記錄
             files_to_delete = db.execute(
@@ -57,7 +66,7 @@ class DataCleaner:
 
             db.commit()
 
-            return deleted_news, deleted_files, deleted_instagram_posts, deleted_published
+            return deleted_news, deleted_files, deleted_instagram_posts, deleted_published, deleted_stories
 
 def main():
     parser = argparse.ArgumentParser(description="數據清理工具")
@@ -67,7 +76,7 @@ def main():
     cleaner = DataCleaner()
 
     if args.clear_old:
-        deleted_news, deleted_files, deleted_instagram_posts, deleted_published = cleaner.clear_old_news(args.clear_old)
+        deleted_news, deleted_files, deleted_instagram_posts, deleted_published, deleted_stories = cleaner.clear_old_news(args.clear_old)
         print(f"已清除 {deleted_news} 條舊新聞、{deleted_files} 個關聯文件、{deleted_instagram_posts} 個 Instagram 貼文和 {deleted_published} 條已發布記錄")
     else:
         print("請指定要執行的操作。使用 -h 或 --help 查看可用選項。")
