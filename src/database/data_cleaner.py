@@ -1,5 +1,5 @@
 from sqlalchemy import create_engine, delete, select, and_, not_, update, func, or_
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, Session
 from datetime import datetime, timedelta
 from .models import News, File, InstagramPost, Published, Story
 from src.config.settings import DATABASE_URL
@@ -13,6 +13,9 @@ class DataCleaner:
     def clear_old_news(self, hours=24):
         """清除指定小時數之前的所有舊新聞及其關聯數據，包括已發布的新聞和孤立的文件"""
         with self.SessionLocal() as db:
+            db: Session = db
+            db.autoflush = False  # 禁用自動刷新
+            
             cutoff_time = datetime.now() - timedelta(hours=hours)
             
             deleted_news = 0
@@ -68,6 +71,10 @@ class DataCleaner:
                     db.delete(story)
                     deleted_stories += 1
                 
+                # 如果 instagram_post_id 不為 NULL，則將其添加到 files_to_delete
+                if record.instagram_post_id:
+                    files_to_delete.add(record.instagram_post_id)
+                
                 db.delete(record)
                 deleted_published += 1
 
@@ -82,7 +89,8 @@ class DataCleaner:
                     and_(
                         not_(File.id.in_(select(News.md_file_id).where(News.md_file_id.isnot(None)))),
                         not_(File.id.in_(select(News.png_file_id).where(News.png_file_id.isnot(None)))),
-                        not_(File.id.in_(select(InstagramPost.integrated_image_id).where(InstagramPost.integrated_image_id.isnot(None))))
+                        not_(File.id.in_(select(InstagramPost.integrated_image_id).where(InstagramPost.integrated_image_id.isnot(None)))),
+                        not_(File.id.in_(select(Published.instagram_post_id).where(Published.instagram_post_id.isnot(None))))
                     )
                 )
             ).scalars().all()
@@ -99,7 +107,7 @@ class DataCleaner:
 
 def main():
     parser = argparse.ArgumentParser(description="數據清理工具")
-    parser.add_argument('--clear-old', type=int, help='清除指定小時數之前的所有舊新聞（��括已發布的）')
+    parser.add_argument('--clear-old', type=int, help='清除指定小時數之前的所有舊新聞（括已發布的）')
 
     args = parser.parse_args()
     cleaner = DataCleaner()
