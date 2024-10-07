@@ -60,20 +60,16 @@ class DataCleaner:
             ).scalars().all()
 
             for record in published_records:
+                # 處理 Story 記錄
+                stories = db.execute(
+                    select(Story).where(Story.published_id == record.id)
+                ).scalars().all()
+                for story in stories:
+                    db.delete(story)
+                    deleted_stories += 1
+                
                 db.delete(record)
                 deleted_published += 1
-
-            # 處理 Story 記錄
-            stories = db.execute(
-                select(Story).where(or_(
-                    Story.published_id.in_([p.id for p in published_records]),
-                    Story.published_id.notin_(select(Published.id))
-                ))
-            ).scalars().all()
-
-            for story in stories:
-                db.delete(story)
-                deleted_stories += 1
 
             # 刪除 News 記錄
             for news in old_news:
@@ -103,7 +99,7 @@ class DataCleaner:
 
 def main():
     parser = argparse.ArgumentParser(description="數據清理工具")
-    parser.add_argument('--clear-old', type=int, help='清除指定小時數之前的所有舊新聞（包括已發布的）')
+    parser.add_argument('--clear-old', type=int, help='清除指定小時數之前的所有舊新聞（��括已發布的）')
 
     args = parser.parse_args()
     cleaner = DataCleaner()
