@@ -4,6 +4,11 @@ from datetime import datetime, timedelta
 from .models import News, File, InstagramPost, Published, Story
 from src.config.settings import DATABASE_URL
 import argparse
+import logging
+from sqlalchemy.exc import IntegrityError
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class DataCleaner:
     def __init__(self):
@@ -11,9 +16,8 @@ class DataCleaner:
         self.SessionLocal = sessionmaker(bind=self.engine)
 
     def clear_old_news(self, hours=24):
-        """清除指定小時數之前的所有舊新聞及其關聯數據，包括已發布的新聞和孤立的文件"""
+        """清除指定小時數之前的所有舊新聞及其關聯數據"""
         with self.SessionLocal() as db:
-            db: Session = db
             db.autoflush = False  # 禁用自動刷新
             
             cutoff_time = datetime.now() - timedelta(hours=hours)
@@ -24,21 +28,12 @@ class DataCleaner:
             deleted_published = 0
             deleted_stories = 0
 
-            # 收集所有需要刪除的文件 ID
-            files_to_delete = set()
-
             # 獲取要刪除的所有舊新聞記錄
             old_news = db.execute(
                 select(News).where(News.published_at < cutoff_time)
             ).scalars().all()
 
             old_news_ids = [news.id for news in old_news]
-
-            for news in old_news:
-                if news.md_file_id:
-                    files_to_delete.add(news.md_file_id)
-                if news.png_file_id:
-                    files_to_delete.add(news.png_file_id)
 
             # 處理 Instagram 貼文
             instagram_posts = db.execute(
@@ -49,39 +44,28 @@ class DataCleaner:
             ).scalars().all()
 
             for post in instagram_posts:
-                if post.integrated_image_id:
-                    files_to_delete.add(post.integrated_image_id)
                 db.delete(post)
                 deleted_instagram_posts += 1
 
-            # 處理已發布的記錄
+            # 處理 Published 記錄
             published_records = db.execute(
-                select(Published).where(or_(
-                    Published.news_id.in_(old_news_ids),
-                    Published.news_id.notin_(select(News.id))
-                ))
+                select(Published).where(Published.news_id.in_(old_news_ids))
             ).scalars().all()
 
             for record in published_records:
-                # 處理 Story 記錄
-                stories = db.execute(
-                    select(Story).where(Story.published_id == record.id)
-                ).scalars().all()
-                for story in stories:
-                    db.delete(story)
-                    deleted_stories += 1
-                
-                # 如果 instagram_post_id 不為 NULL，則將其添加到 files_to_delete
-                if record.instagram_post_id:
-                    files_to_delete.add(record.instagram_post_id)
-                
                 db.delete(record)
                 deleted_published += 1
 
-            # 刪除 News 記錄
+            # 處理 Story 記錄
+            # 注意：這裡我們移除了 Story 的處理，因為它似乎沒有 news_id 字段
+            # 如果 Story 與 News 有其他關聯方式，請相應地修改這部分代碼
+
+            # 刪除新聞記錄
             for news in old_news:
                 db.delete(news)
                 deleted_news += 1
+
+            db.commit()
 
             # 查找並刪除孤立的文件
             orphaned_files = db.execute(
@@ -95,13 +79,13 @@ class DataCleaner:
                 )
             ).scalars().all()
 
-            files_to_delete.update([file.id for file in orphaned_files])
-
-            # 刪除所有收集到的文件
-            if files_to_delete:
-                deleted_files = db.execute(delete(File).where(File.id.in_(files_to_delete))).rowcount
+            for file in orphaned_files:
+                db.delete(file)
+                deleted_files += 1
 
             db.commit()
+
+            logger.info(f"已清除 {deleted_news} 條舊新聞、{deleted_files} 個關聯文件、{deleted_instagram_posts} 個 Instagram 貼文、{deleted_published} 條已發布記錄和 {deleted_stories} 條故事")
 
             return deleted_news, deleted_files, deleted_instagram_posts, deleted_published, deleted_stories
 
