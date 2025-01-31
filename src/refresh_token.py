@@ -21,7 +21,7 @@ def refresh_instagram_token():
         return
 
     # 構建 API 請求 URL
-    url = f"https://graph.facebook.com/v12.0/oauth/access_token"
+    url = f"https://graph.facebook.com/v0.22/oauth/access_token"
     params = {
         "grant_type": "fb_exchange_token",
         "client_id": app_id,
@@ -32,14 +32,21 @@ def refresh_instagram_token():
     try:
         # 發送請求以刷新 token
         response = requests.get(url, params=params)
-        response.raise_for_status()  # 如果請求失敗，這將引發異常
-        new_token = response.json()["access_token"]
+        if not response.ok:
+            error_details = response.json() if response.text else "No error details available"
+            logging.error(f"API Error Response: Status Code: {response.status_code}, Details: {error_details}")
+            logging.error(f"Request Parameters (excluding secret): client_id={app_id}, grant_type=fb_exchange_token")
+        response.raise_for_status()
+        
+        data = response.json()
+        new_token = data["access_token"]
+        expires_in = data.get("expires_in")  # 獲取 token 的有效期
+        
+        logging.info(f"Token will expire in {expires_in} seconds (approximately {expires_in/86400:.2f} days)")
 
         # 更新 .env 文件中的 token
         env_path = '.env'
         set_key(env_path, 'INSTAGRAM_ACCESS_TOKEN', new_token)
-
-        logging.info(f"Instagram access token successfully refreshed at {datetime.now()}")
     except requests.RequestException as e:
         logging.error(f"Error refreshing token: {e}")
     except KeyError:
