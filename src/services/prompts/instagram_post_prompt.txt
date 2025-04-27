@@ -30,29 +30,54 @@ Create an Instagram post in Traditional Chinese, consisting of:
   - Ensure accuracy, avoid exaggeration
 
 ### Caption (ig_caption):
-- Length: 400-600 characters (including spaces)
+- Length: 500-800 characters (including spaces)
+  - The ideal length balances completeness with readability
+  - Prioritize information density over length - every sentence should provide concrete value
+  - For complex stories, lean toward the upper limit to ensure complete context
 - Structure:
-  - Organize content into clear, logical paragraphs
-  - Use line breaks between paragraphs for readability
+  - Organize into 4-5 focused paragraphs, each serving a distinct purpose
+  - Keep paragraphs short (2-3 sentences) for mobile readability
+  - Follow this narrative arc:
+      1. Opening: Latest development with when/where it occurred
+      2. Core facts: Key information, data, and outcomes
+      3. Context/Background: Essential information to understand significance
+      4. Global implications or impact assessment
+      5. Future outlook or next developments
+  - Each paragraph should build logically on the previous one
 - Content:
-  - Begin with a strong opening sentence summarizing the core news
-  - Focus on the "5W1H" (Who, What, When, Where, Why, How)
-  - Provide quantitative data and critical numbers
-  - Include essential context and background information
-  - Explain potential implications or consequences globally
-  - Only mention Taiwan when the news has a direct and significant impact
-  - For news not directly related to Taiwan, focus on global context
+  - Lead with the most important and recent development (inverted pyramid structure)
+  - Include precise details: exact dates, specific locations, full organization names
+  - When referencing time, use concrete markers (e.g., "昨(10)日" rather than just "recently")
+  - Contextualize all statistics and data points to show significance
+  - Ensure causal connections are clear (why something happened, what led to this event)
+  - Balance breadth (covering all key aspects) with depth (providing meaningful details)
+  - Only include information essential to understanding the story
+  - End with concrete forward-looking information, not general statements
+  - Taiwan relevance:
+    • Only mention Taiwan when the news has a direct and significant impact
+    • For Taiwan-relevant news, clearly explain the specific local implications
+    • For news not directly related to Taiwan, focus on global context
 - Style:
   - Use simple, clear language while maintaining depth and accuracy
   - Maintain a professional and objective tone
-  - Use analogies or comparisons to explain complex concepts
-  - Incorporate relevant statistics, explaining their significance
+  - Prioritize factual reporting over commentary
+  - Use short, direct sentences for key information
+  - Employ transitional phrases between paragraphs for smooth narrative flow
+  - For complex concepts, use one brief clarifying analogy if necessary
 - Formatting:
-  - Use line breaks to separate different aspects of the news
-  - Use bullet points or numbered lists sparingly for clarity if it's suitable
+  - Use a line break between each paragraph
+  - For lists of data or outcomes, use bullet points (limited to 3-4 items)
+  - Structure long numbers for readability (e.g., "5,000 萬" instead of "50000000")
+  - Break up dense information into digestible chunks
 - Emoji Usage:
-  - Use appropriate emojis to enhance the message, especially at paragraph beginnings and ends
-  - Ensure emojis are relevant and culturally appropriate
+  - Use 1 relevant emoji at the start of each paragraph as visual signposts
+  - Choose emojis that categorize information type:
+      • 🔍/🗞️ - For news events and announcements
+      • 📊/📈 - For data and statistics
+      • 🔬/💡 - For explanations or analysis
+      • 🌍/🔄 - For global impact or context
+      • ⏭️/📆 - For future developments or next steps
+  - Avoid using multiple emojis together
 
 ### Hashtags (ig_hashtags):
 - Provide 5-7 relevant hashtags
@@ -79,21 +104,21 @@ Create an Instagram post in Traditional Chinese, consisting of:
 ## Example Output
 ```json
 {
-  "ig_title": "突破性研究：新藥 XYZ-123 或可延緩阿茲海默症 🧠💊",
-  "ig_caption": "🔬 重大醫學突破！新型單克隆抗體藥物 XYZ-123 在臨床試驗中展現驚人效果，可能顯著延緩阿茲海默症進展。
+  "ig_title": "突破性研究：新藥 XYZ-123 可延緩阿茲海默症進展 60% 🧠💊",
+  "ig_caption": "🔍 美國食品藥物管理局（FDA）昨(10)日宣布批准新型藥物 XYZ-123 進入第三期臨床試驗，這款由生技公司 NeuroPharma 開發的單克隆抗體藥物，已在第二期試驗中展現驚人效果。
 
-📊 關鍵數據：
-• 75% 早期患者服用一年後，認知功能衰退速度減緩 40%
-• 90% 患者的 β-澱粉樣蛋白斑塊減少 30-50%
-• 僅 5% 參與者報告輕微頭痛
+📊 根據今年3月發表在《自然醫學》期刊的研究顯示，XYZ-123 在為期一年的試驗中取得三大成果：
+• 75% 早期患者的認知功能衰退速度減緩 60%
+• 腦部掃描顯示 β-澱粉樣蛋白斑塊平均減少 45%
+• 只有 5% 參與者出現輕微副作用，主要為頭痛
 
-🏥 專家解析：約翰·霍普金斯大學 Dr. Emily Chen 稱，XYZ-123 是雙特異性抗體，同時靶向 β-澱粉樣蛋白和 Tau 蛋白，還能穿過血腦屏障。更驚人的是，它可能促進神經可塑性和神經元再生，有望逆轉部分神經損傷。
+🔬 這款藥物如何運作？約翰·霍普金斯大學神經科學教授 Emily Chen 解釋，XYZ-123 是首款雙特異性抗體，同時靶向兩種致病蛋白質並能穿過血腦屏障。與現有藥物不同，它不僅減緩退化，還促進神經元修復。
 
-🌍 影響：全球約 5,000 萬阿茲海默症患者，預計 2050 年增至 1.5 億。若 XYZ-123 能於 2025 年上市，將改變數百萬人生活。
+🌍 目前全球約 5,000 萬人患有阿茲海默症，世界衛生組織預計到 2050 年患者數將增至 1.5 億。若此藥物於 2025 年如期上市，將為全球數百萬家庭帶來希望。
 
-🔬 展望：第三階段試驗啟動，涉及 20 國 5,000 名患者，或將為神經退行性疾病治療帶來革命性突破。
+⏭️ 接下來，NeuroPharma 將在 20 個國家招募 5,000 名患者進行最終試驗，預計明年年中公布初步結果。專家稱，這可能是近二十年來神經退行性疾病治療的最大突破。
 
-#Alzheimers #GlobalHealth #BiotechInnovation #神經科學 #腦科學研究 #單克隆抗體"
+#Alzheimers #神經科學 #醫學突破 #BiotechInnovation #阿茲海默 #腦科學研究 #單克隆抗體"
 }
 ```
 
