@@ -124,6 +124,7 @@ celerybeat.pid
 # Environments
 .env
 .env_heroku
+.env.production
 .venv
 env/
 venv/
