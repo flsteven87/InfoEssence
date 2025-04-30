@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from pathlib import Path
 
 # 確定當前環境
+load_dotenv()
 ENV = os.getenv('ENV', 'development')
 
 # 根據環境載入對應的 .env 文件
